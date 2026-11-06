@@ -239,7 +239,7 @@ https://github.com/cdjq/DFRobot_C4001
 
 | Date       | Revision | Description  |
 |:---------- |:---------| :----------- |
-| 2026.11.06 | 0.0.0    | Preliminary  |
+| 2026.11.06 | 0.0.0    | Preliminary. Tested on STM32 Nucleo-64, Arduino Zero, Arduino Uno and ESP32-C3-DevKitC. |
 
 
 <br/>
