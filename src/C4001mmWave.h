@@ -15,7 +15,7 @@
 typedef unsigned long ulong;
 typedef unsigned int uint;
 
-// See FloatUtils.cpp
+// See Float.cpp
 extern bool stringToFloat(const char* psz, float* result, char** pszEnd);
 extern bool floatToString(float value, char* psz, unsigned int decimalPlaces);
 
@@ -85,7 +85,7 @@ public:
 	bool setThresholdFactor(uint factor);
 	bool getThresholdFactor(uint* factor);
 
-	// These do not work on my board, but they are in the DFRobot library
+	// These do not work on my boards, but they are in the DFRobot library
 	#if 0
 	bool setGpioMode(bool mode);		// setIoPolaity()
 	bool getGpioMode(bool* mode);		// getIoPolaity()
@@ -499,7 +499,7 @@ bool C4001mmWave::getThresholdFactor(uint* factor)
 	return sscanf(data, "%u", factor) == 1;
 }
 
-// These do not work on my board, but they are in the DFRobot library
+// These do not work on my boards, but they are in the DFRobot library
 #if 0
 bool C4001mmWave::setGpioMode(bool mode)
 {
