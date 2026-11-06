@@ -20,7 +20,7 @@ There are two on-board LEDs. The green LED means it's in RUN mode. The white LED
 
 I like these boards because they are relatively easy to configure. They do not need a PC application to set them up.
 
-They are often called '_Human_ Presence Sensors'. But I suspect they will also detect space aliens, dogs, cats, robots, Triffids, Tarantulas, etc.
+They are often called '_Human_ Presence Sensors'. But I suspect they will also detect space aliens, dogs, cats, robots, drones, Triffids, Tarantulas, etc.
 
 The mmWave sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
 
