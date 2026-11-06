@@ -102,7 +102,7 @@ Once this has been run, you need to change the baud rate of the serial stream to
 
 * Uses `Stream` for reading and writing data, so exactly the same code works for both `HardwareSerial` and `SoftwareSerial`.
 
-* Has its own optimised floating point conversion routines to/from character arrays, in `Float.cpp`.
+* Has its own optimised floating point conversion routines to/from character arrays, in `FloatUtils.cpp`.
 
 * Does not use `String` and string concatenation. `String` uses `malloc()` and `free()` copiously. This is not good practice because memory fragmentation can occur in devices with small RAM, and it will silently and randomly crash if this happens. 
 
