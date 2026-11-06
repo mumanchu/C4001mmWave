@@ -60,7 +60,7 @@ public:
 	bool getSWV(char* swVersion);
 
 	// Control
-	bool setRunApp(C4001Mode mode);
+	bool setRunApp(C4001Mode detectionMode);
 	bool sensorStop();
 	bool sensorStart(bool keepState = false);
 	bool saveConfig();
@@ -236,13 +236,14 @@ bool C4001mmWave::parseVersion(bool bsw, char* version)
 // It starts running and begins sending $DFHPD or $DFDMD messages,
 // so there is no need to use sensorStart().
 // The sensor must be stopped to use this command, see sensorStop().
-// mode : PresenceDetectionMode for $DFHPD messages
-//        MotionDetectionMode   for $DFDMD messages
-bool C4001mmWave::setRunApp(C4001Mode mode)
+// detectionMode : PresenceDetectionMode for $DFHPD messages
+//                 MotionDetectionMode   for $DFDMD messages
+bool C4001mmWave::setRunApp(C4001Mode detectionMode)
 {
-	C4001_PRINT(mode ? "\r\nMotion Detection Mode Set\r\n" : "\r\nPresence Detection Mode Set\r\n");
+	C4001_PRINT(detectionMode ? "\r\nMotion Detection Mode Set\r\n" : 
+		"\r\nPresence Detection Mode Set\r\n");
 
-	sprintf(txBuf, "setRunApp %u\r\n", mode);
+	sprintf(txBuf, "setRunApp %u\r\n", detectionMode);
 	stream->write(txBuf);
 	rxState = 0;
 
@@ -717,7 +718,7 @@ char* C4001mmWave::getResponseData()
 	return start;
 }
 
-// Send a message and returns the response in rxBuf
+// Send a message and return the response in rxBuf
 // the response is parsed by the receive() state machine
 // returns false if it times out, has not echoed the command,
 // or if the response does not contain the word "Done"
@@ -758,7 +759,7 @@ bool C4001mmWave::sendMessageAndGetResponse(const char* message)
 	return true;
 }
 
-// For some commands, the protocal document says the command has 
+// For some commands, the protocol document says the command has 
 // no response - but it does respond with "DFRobot:/>", preceded 
 // by some garbage characters, so we wait for '>', with a timeout
 bool C4001mmWave::awaitPrompt()

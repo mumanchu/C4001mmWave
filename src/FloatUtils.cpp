@@ -30,6 +30,7 @@ The max. number of decimal places is 6 for float. Float holds only 6 or
 #include <string.h>
 #include <math.h>
 #include <errno.h>
+#include <stdlib.h>
 
 static const char utils_nan[] = "NAN";		// or "-E-" for 7-segment display
 static const char utils_format1[] = "-%lu";
