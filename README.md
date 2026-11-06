@@ -120,7 +120,7 @@ To change it back to the default, just call `changeBaudRate(9600)`.
 
 * Debug output is enabled/disabled with `#define DEBUG`, using the `C4001_LOGERROR(s)` and `C4001_PRINT(s)` macros.
 
-* Has a state machine for processing UART messages received from the mmWave board. This works even if a message is corrupted or reading starts in the middle of a message.
+* Has a state machine for processing UART messages received from the mmWave board. This detects corrupted messages, and works if reading starts in the middle of a message.
 
 * The example sketch shows how to change the baud rate and save it to Flash memory, see `changeBaudRate(ulong newBaudRate)`.
 
