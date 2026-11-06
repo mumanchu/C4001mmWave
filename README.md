@@ -1,5 +1,5 @@
 
-## Arduino Library for DFRobot C4001 mmWave Human Presence Sensors 
+## Arduino Library for DFRobot C4001 mmWave Presence Sensors 
 
 This library supports UART (RX/TX) communications only, using DFRobot's command-line style ASCII protocol. I2C is not supported.
 
@@ -16,9 +16,11 @@ Other DFRobot modules use different RX/TX protocols (ASCII or binary). This libr
 
 Both these DFRobot boards use the ICLegend S3KM1110 mmWave sensor. This is a system-on-a-chip (SoC) device which has been programmed by DFRobot to support their proprietary ASCII protocol.
 
-They have two on-board LEDs. The green LED means it's in RUN mode. The white LED follows the state of the OUT pin (presence or motion detected). 
+There are two on-board LEDs. The green LED means it's in RUN mode. The white LED follows the state of the OUT pin (presence or motion detected). 
 
 I like these boards because they are relatively easy to configure. They do not need a PC application to set them up.
+
+They are often called '_Human_ Presence Sensors'. But I suspect they will also detect space aliens, dogs, cats, robots, Triffids, Tarantulas, etc.
 
 The mmWave sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
 
