@@ -14,7 +14,7 @@ Other DFRobot modules use different RX/TX protocols (ASCII or binary). This libr
 <img height="300" alt="image" src="images/c4001-boards.jpg" />
 
 
-Both these DFRobot boards use the ICLegend S3KM1110 mmWave sensor. This is a system-on-a-chip (SoC) device which has been programmed by DFRobot to support their propretary ASCII protocol.
+Both these DFRobot boards use the ICLegend S3KM1110 mmWave sensor. This is a system-on-a-chip (SoC) device which has been programmed by DFRobot to support their proprietary ASCII protocol.
 
 The mmWave sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
 
@@ -214,6 +214,7 @@ https://github.com/cdjq/DFRobot_C4001
 ## Joke of the Week
 
 Was Schrödinger's cat able to think outside the box?
+
 
 <!--
 ## Joke of the ~~Week~~ Decade
