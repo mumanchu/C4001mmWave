@@ -37,8 +37,8 @@ bool changeBaudRate(ulong newBaudRate)
 		return false;
 	}
 
-	// the response returned at the new baud rate! 
-	// so this always times out
+	// the response is returned at the new baud rate! 
+	// so this always times out and fails
 	c4001.resetSystem();
 	delay(2000);
 
