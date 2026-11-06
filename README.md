@@ -201,6 +201,8 @@ public:
 
 ## Example Sketch
 
+[C4001mmWave-Example.ino](examples/C4001mmWave-Example/C4001mmWave-Example.ino)
+
 You will need two Serial ports, `Serial1` for connecting the mmWave device, and the default `Serial` for the Serial Monitor so you can see the data. 
 
 The mmWave board works with 3.3V or 5V. If your MCU is 5V, connect 5V to the mmWave board's VIN pin. If the MCU is 3.3V, connect 3.3V to VIN. Connect GND to GND.
