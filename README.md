@@ -20,7 +20,7 @@ There are two on-board LEDs. The green LED means it's in RUN mode. The white LED
 
 I like these boards because they are relatively easy to configure. They do not need a PC application to set them up.
 
-They are often called '_Human_ Presence Sensors'. But I suspect they will also detect space aliens, dogs, cats, robots, drones, Triffids, Tarantulas, etc.
+They are often called '_Human_ Presence Sensors'. But I suspect they will also detect space aliens, dogs, cats, robots, drones, tarantulas, triffids, etc. (Testing in progress ;-)
 
 The mmWave sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
 
@@ -43,12 +43,12 @@ When the sensor is in Run mode, it continuously sends _report messages_ to the m
 
 The detection mode is selected with the `setRunApp(C4001Mode detectionMode)` method. 
 
-_Presence detection_ just returns a boolean value meaning 'presence' or 'no presence' in a "$DFHPD ..." message. Note that the data sheet sometimes uses _existence detection_ instead of _presence detection_.
+_Presence detection_ just returns a boolean value meaning 'presence' or 'no presence' in a "$DFHPD ..." message. Note that the data sheet sometimes uses _existence detection_ instead of _presence detection_, which is not the same thing (you can exist without being present ;-)
 
-_Motion detection_ returns much more detailed information in a "$DFDMD ..." message - the number of moving targets detected, the distance, speed and energy. The 'target energy' is not described in the documentation, it seems to be a relative value which could be used to determine the size of the moving object or person.
+_Motion detection_ returns much more detailed information in a "$DFDMD ..." message - the number of moving targets detected, the distance, speed and energy. The 'target energy' is not described in the documentation, it seems to be a relative value which could be used to determine the size of the moving object.
 
 > [!NOTE]
-> For the 25m version, the data sheet states, "a presence detection range of 16 meters, and a motion detection and distance measurement range of 25 meters". This means that beyond 16m the 25m version works only for motion detection. Both presence and motion detection work up to 16m, and motion detection works only between 16 and 25m. \
+> For the 25m version, the data sheet states, "a presence detection range of 16 meters, and a motion detection and distance measurement range of 25 meters". I think this means that beyond 16m, the 25m version works only for motion detection. Both presence and motion detection will work up to 16m, and motion detection works only between 16m and 25m. \
 > \
 > **So it may be better to keep the sensor in _motion detection_ mode and use motion to detect presence, maintaining your own 'presence' state with a timeout if no motion is detected after a certain period.**
 
