@@ -116,9 +116,11 @@ Once this has been run, you need to change the baud rate of the serial stream to
 
 * Has useful descriptions for each method, to help understand what it does, and why.
 
-* Efficient code. This library does not repeat the same code in multiple methods, which cannot be optimised by the compiler. The DFRobot library contains both UART and I2C code, even if you don't use I2C. See DFRobot's `uartI2CFlag`. This is strange because they could have put this in the `DFRobot_C4001_I2C` class and done all the shared work in a base class.
+* Efficient code. This library does not repeat the same code in multiple methods, which cannot be optimised by the compiler. The DFRobot library contains both UART and I2C code, even if you don't use I2C. See DFRobot's `uartI2CFlag`. This is strange because they could have put this into the `DFRobot_C4001_I2C` class and done all the shared work in a base class.
 
-* Disadvantage? This library supports only the UART protocol, I2C for the SEN0610 is not supported. 
+* The DFRobot library uses a low of delays instead of parsing the responses in real time. It delays until the file response "should have been received" before processing it.
+
+* Advantage or Disadvantage? This library supports only the UART protocol, I2C (for the SEN0610 only) is not supported.
 
 
 
