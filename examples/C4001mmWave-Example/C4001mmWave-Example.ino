@@ -10,11 +10,33 @@
 #include "C4001mmWave.h"
 C4001mmWave c4001;
 
-#ifdef ARDUINO_ARCH_STM32
+// 'Serial1' is used for the mmWave sensor's UART
+// 'Serial' is for the Serial Monitor so you can see the data
+
+#if defined(ARDUINO_ARCH_STM32)
 // On the STM32F103 Nucleo board, 'Serial' is the USB port
 // so we use USART1, TX=D8 (PA9), RX=D2 (PA10) for the mmWave sensor
 Uart Serial1(USART1);
 #endif
+
+#if defined(ARDUINO_ARCH_AVR) // || defined(ARDUINO_xxx)
+// Use SoftwareSerial, RX=D6, TX=D7
+#include <SoftwareSerial.h>
+SoftwareSerial Serial1(6 /*rxPin*/, 7 /*txPin*/);
+#endif
+
+#if defined(ARDUINO_SAMD_ZERO)
+// Arduino Zero has 'Serial1' on pin 0 (RX) and pin 1 (TX), so you don't need 
+// to do anything. 'Serial' is the USB port, so connect your Serial Monitor to 
+// the port called 'Atmel Corp. EDBG CMSIS-DAP'. 
+#endif
+
+#if defined(ARDUINO_ARCH_ESP32)
+// For the ESP32s, Serial1's pins can be defined
+// see the code in setup()
+#endif
+
+
 
 // Change the C4001 baud rate, 4800..115200
 bool changeBaudRate(ulong newBaudRate)
@@ -25,7 +47,7 @@ bool changeBaudRate(ulong newBaudRate)
 		return false;
 	}
 
-	// set the baud rate, this also checks for valid baud rates
+	// set the baud rate, this also checks for valid standard baud rates
 	if (!c4001.setUart(newBaudRate)) {
 		C4001_LOGERROR("setUart() failed, bad baud rate?");
 		return false;
@@ -62,8 +84,8 @@ void fatal(const char* msg)
 void setup()
 {
 	// I use different pins for Serial logging
-	// this is only for the STM32 Nucleo-64 boards
-	// else Serial is the USB which is also used for download
+	// this is only for the STM32 Nucleo-64 boards,
+	// else Serial is the USB port which is also used for download
 	#ifdef ARDUINO_NUCLEO_64
 	Serial.setTx(PC_10);
 	Serial.setRx(PC_11);
@@ -76,13 +98,19 @@ void setup()
 	// patch out if not using PuTTY
 	Serial.print("\033[2J\033[H\033[3J");
 
-	Serial.println("\r\nSTM32 Started...\r\n");
+	Serial.println("\r\nC4001mmWave-Example Started...\r\n");
 	Serial.flush();
 
-	// SEN0609 (25m) uart at 9600 baud by default
+	// usually defaults to 9600 baud
+	// modify this after using changeBaudRate()
 	Serial1.begin(9600);
 
-	// the sensor is in Stop after this, ready to receive commands 
+	#if defined(ARDUINO_ARCH_ESP32)
+	// for the ESP32s, Serial1's pins can be defined
+	Serial1.setPins(6 /*rxPin*/, 7 /*txPin*/);
+	#endif
+
+	// the sensor remains in Stop after this, ready to receive commands 
 	if (!c4001.begin(&Serial1))
 		fatal("begin() failed");
 
@@ -167,7 +195,7 @@ void loop()
 
 		// Motion Detection
 		if (strncmp(c4001.getRxBuf(), "$DFDMD", 6) == 0) {
-			uint numTargets;	// always 1?
+			uint numTargets;	// always 0 or 1?
 			float targetDistance, targetSpeed, targetEnergy;
 			c4001.parseDFDMD(&numTargets, &targetDistance, &targetSpeed, &targetEnergy);
 			//TODO add your own presence detection code here
