@@ -193,7 +193,7 @@ void loop()
 	// active reporting message received?
 	if (c4001.receive(NULL)) {
 
-		// Motion Detection
+		// Motion Detection message
 		if (strncmp(c4001.getRxBuf(), "$DFDMD", 6) == 0) {
 			uint numTargets;	// always 0 or 1?
 			float targetDistance, targetSpeed, targetEnergy;
@@ -201,7 +201,7 @@ void loop()
 			//TODO add your own presence detection code here
 		}
 
-		// Presence Detection
+		// Presence Detection message
 		else if (strncmp(c4001.getRxBuf(), "$DFDPD", 6) == 0) {
 			bool presenceDetected;
 			c4001.parseDFHPD(&presenceDetected);
