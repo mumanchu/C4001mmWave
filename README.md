@@ -16,6 +16,8 @@ Other DFRobot modules use different RX/TX protocols (ASCII or binary). This libr
 
 Both these DFRobot boards use the ICLegend S3KM1110 mmWave sensor. This is a system-on-a-chip (SoC) device which has been programmed by DFRobot to support their proprietary ASCII protocol.
 
+They have two on-board LEDs. Green means it's in RUN mode, white follows the state of the OUT pin (presence or motion detected). 
+
 The mmWave sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
 
 > [!NOTE]
