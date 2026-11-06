@@ -116,7 +116,7 @@ To change it back to the default, just call `changeBaudRate(9600)`.
 
 * Does not use the `String` class and string concatenation. `String` uses `malloc()` and `free()` copiously. This is not good practice because memory fragmentation can occur in devices with small RAM, and it will silently and randomly crash if this happens. 
 
-* Full communications error detection, with timeouts. Every method returns `true` (success) or `false` (failed).
+* Full communications error detection, with timeouts. Every method returns `true` (success) or `false` (failed). Data is returned via pointer parameters.
 
 * Debug output is enabled/disabled with `#define DEBUG`, using the `C4001_LOGERROR(s)` and `C4001_PRINT(s)` macros.
 
