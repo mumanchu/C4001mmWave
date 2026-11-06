@@ -15,7 +15,7 @@
 typedef unsigned long ulong;
 typedef unsigned int uint;
 
-// See Float.cpp
+// See FloatUtils.cpp
 extern bool stringToFloat(const char* psz, float* result, char** pszEnd);
 extern bool floatToString(float value, char* psz, unsigned int decimalPlaces);
 
