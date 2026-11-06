@@ -18,10 +18,12 @@ Both these DFRobot boards use the ICLegend S3KM1110 mmWave sensor. This is a sys
 
 They have two on-board LEDs. Green means it's in RUN mode, white follows the state of the OUT pin (presence or motion detected). 
 
+I like these boards because they are relatively easy to configure. They do not need a PC application to set them up.
+
 The mmWave sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
 
 > [!NOTE]
-> The smaller 12m board (SEN0610) has a switch on the back to select I2C or UART mode. This must be switched to UART mode. The larger 25m board (SEN0609) works only in UART mode.
+> The smaller 12m range board (SEN0610) has a switch on the back to select I2C or UART mode. This must be switched to UART mode. The larger 25m range board (SEN0609) works only in UART mode.
 
 
 ## Operating Modes
@@ -43,7 +45,9 @@ _Motion detection_ returns much more detailed information in a "$DFDMD ..." mess
 
 > [!NOTE]
 > The data sheet states, "a presence detection range of 16 meters and a motion detection and distance measurement range of 25 meters". This means that (for the 25m version) beyond 16m it works only for motion detection. Both presence and motion detection work up to 16m, and motion detection works only from 16..25m. \
-**So it may be better to keep the sensor in _motion detection_ mode and use motion to detect presence, maintaining your own 'presence' state with a timeout if no motion is detected.**
+> \
+> **So it may be better to keep the sensor in _motion detection_ mode and use motion to detect presence, maintaining your own 'presence' state with a timeout if no motion is detected.**
+
 
 When in Run, report messages are sent continuously to the master. These should be polled from `loop()` by calling `C4001::receive()`. Received ASCII messages are then parsed with `parseDFHPD()` or `parseDFDMD()` to return individual values.
 
@@ -55,7 +59,7 @@ void loop()
 
         // Motion Detection
         if (strncmp(c4001.getRxBuf(), "$DFDMD", 6) == 0) {
-            uint numTargets;	// always 1?
+            uint numTargets;	// always 0 or 1?
             float targetDistance, targetSpeed, targetEnergy;
             c4001.parseDFDMD(&numTargets, &targetDistance, &targetSpeed, &targetEnergy);
             //TODO add your own presence detection code here
@@ -88,19 +92,21 @@ After calling `saveConfig()`, you must send either the command to start the modu
 
 ## Changing the UART Baud Rate
 
-The baud rate can be changed, but the DFRobot library does not help you (it says "the baud rate cannot be changed").
+The baud rate can be changed, but the DFRobot library does not help you. It says "the baud rate cannot be changed" (motionDetection.ino, line 30).
 
-The _mumanchu_ example sketch contains a function called `changeBaudRate(ulong newBaudRate)` which will do this for you and sve the new baud rate into Flash memory.
+The _mumanchu_ example sketch contains a function called `changeBaudRate(ulong newBaudRate)` which will do this for you and save the new baud rate into Flash memory.
 
-Once this has been run, you need to change the baud rate of the serial stream to use the new baud rate the next time it runs.
+After `changeBaudRate()` has been run, you must modify the baud rate of the serial stream to use the new baud rate the next time it runs.
+
+To change it back to the default, just call `changeBaudRate(9600)`.
 
 > [!NOTE]
-> The data sheet says the default Baud rate is 115200 bps. This was not the case for my boards, they were both configured for 9600 bps. 
+> The data sheet says the default Baud rate is 115200 bps. This was not the case for my two boards, they were both configured for 9600 bps. 
 
 
 ## Advantages of This Library
 
-* Uses `Stream` for reading and writing data, so exactly the same code works for both `HardwareSerial` and `SoftwareSerial`.
+* Uses `Stream` for reading and writing data, so the same code works for both `HardwareSerial` and `SoftwareSerial`.
 
 * Has its own optimised floating point conversion routines to/from character arrays, in `FloatUtils.cpp`.
 
@@ -110,15 +116,15 @@ Once this has been run, you need to change the baud rate of the serial stream to
 
 * Debug output enabled/disabled with `#define DEBUG`, using the `C4001_LOGERROR(s)` and `C4001_PRINT(s)` macros.
 
-* Has a state machine for processing messages from the board. This works even if a message is corrupted or reading starts in the middle of a message.
+* Has a state machine for processing UART messages received from the board. This works even if a message is corrupted or reading starts in the middle of a message.
 
-* Example sketch shows how to change the baud rate.
+* The example sketch shows how to change the baud rate and save it to Flash, see `changeBaudRate(ulong newBaudRate)`.
 
-* Has useful descriptions for each method, to help understand what it does, and why.
+* Has useful descriptions of each method, to help understand what it does, and why.
 
 * Efficient code. This library does not repeat the same code in multiple methods, which cannot be optimised by the compiler. The DFRobot library contains both UART and I2C code, even if you don't use I2C. See DFRobot's `uartI2CFlag`. This is strange because they could have put this into the `DFRobot_C4001_I2C` class and done all the shared work in a base class.
 
-* The DFRobot library uses a low of delays instead of parsing the responses in real time. It delays until the file response "should have been received" before processing it.
+* The DFRobot library uses a lot of delays instead of parsing the responses in real time. It delays until the file response "should have been received" before processing it. The _mumanchu_ library parses responses in real time, no dalays are needed.
 
 * Advantage or Disadvantage? This library supports only the UART protocol, I2C (for the SEN0610 only) is not supported.
 
@@ -176,7 +182,7 @@ public:
     bool setThresholdFactor(uint factor);
     bool getThresholdFactor(uint* factor);
 
-    // These do not work on my board, but they are in the DFRobot library
+    // These do not work on my boards, but they are in the DFRobot library
     #if 0
     bool setGpioMode(bool mode);        // setIoPolaity()
     bool getGpioMode(bool* mode);       // getIoPolaity()
