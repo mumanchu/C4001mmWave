@@ -180,19 +180,24 @@ void loop()
 		}
 	}
 
-	// simple scheduler (not used)
-	static ulong t = 0;
+	// simple schedulers (not used)
 	ulong ms = millis();
-	if (t == 0)
-		t = ms;
-	ulong elapsedMs = ms - t;
 
-	if (elapsedMs >= 500) {
-		t = ms;
+	// 500mS scheduler
+	static ulong t1 = 0;
+	if (t1 == 0)	// wait 500mS before 1st call
+		t1 = ms;
+	if (ms - t1 >= 500) {
+		t1 = ms;
 		//TODO do something every 500mS
 	}
-	if (elapsedMs >= 1000) {
-		t = ms;
+
+	// 1000mS scheduler
+	static ulong t2 = 0;
+	//if (t2 == 0)	// patch out to do first call immediately
+	//	t2 = ms;
+	if (ms - t2 >= 1000) {
+		t2 = ms;
 		//TODO do something every second
 	}
 
