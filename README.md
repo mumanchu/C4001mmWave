@@ -61,7 +61,7 @@ void loop()
     // active reporting message received?
     if (c4001.receive(NULL)) {
 
-        // Motion Detection
+        // Motion Detection message received
         if (strncmp(c4001.getRxBuf(), "$DFDMD", 6) == 0) {
             uint numTargets;	// always 0 or 1?
             float targetDistance, targetSpeed, targetEnergy;
@@ -69,7 +69,7 @@ void loop()
             //TODO add your own presence detection code here
         }
 
-        // Presence Detection
+        // Presence Detection message received
         else if (strncmp(c4001.getRxBuf(), "$DFDPD", 6) == 0) {
             bool presenceDetected;
             c4001.parseDFHPD(&presenceDetected);
@@ -80,7 +80,7 @@ void loop()
 ```
 
 
-## Flash Memory for Configuration
+## Flash Memory for Storing the Configuration
 
 It is not necessary to configure the chip every time it starts up. Once a suitable configuration has been tested, it can be programmed into Flash memory so it is restored automatically when the chip powers up. To store the current configuration, which includes the baud rate (if changed), call `saveConfig()`.
 
