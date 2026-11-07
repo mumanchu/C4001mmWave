@@ -30,7 +30,7 @@ Since they use a kind of radar, they can easily see through a plastic protective
 
 ### Information about the boards used for the tests
 
-You may find there are differences in behaviour with different versions of the firmware. These are the versions for my two boards. Please let me know if you find any differences with your board's firmware.
+You may find there are differences in behaviour with different versions of the board's firmware. These are the versions for my two boards. Please let me know if you find any differences with your board's firmware.
 
 SEN0610 12m \
 HardwareVersion: JYSJ_426_A01_H \
@@ -62,7 +62,7 @@ _Motion detection_ returns much more detailed information in a "$DFDMD ..." mess
 > For the 25m version, the data sheet states, "a presence detection range of 16 meters, and a motion detection and distance measurement range of 25 meters". I think this means that beyond 16m, the 25m version works only for motion detection. Both presence and motion detection will work up to 16m, and motion detection works only between 16m and 25m. \
 
 > [!NOTE]
-> Another note that I found in the data sheet, "The C4001 millimeter wave presence sensor is not specifically designed for distance measurement. The distance is currently not calibrated in the current version, so the distance can only be used as a reference and may have some deviation or error." So ignore the `targetDistance` value. 
+> Another note that I found in the data sheet, "The C4001 millimeter wave presence sensor is not specifically designed for distance measurement. The distance is currently not calibrated in the current version, so the distance can only be used as a reference and may have some deviation or error." So take care with the `targetDistance` value. 
 
 When in Run, report messages are sent continuously to the master. These should be polled from `loop()` by calling `C4001::receive()`. Received ASCII messages are then parsed with `parseDFHPD()` or `parseDFDMD()` to return individual values.
 
@@ -146,12 +146,14 @@ To change it back to the default, call `changeBaudRate(9600)` or `resetToFactory
 
 * Efficient code. This library does not repeat the same code in multiple methods, which cannot be optimised by the compiler. The DFRobot library contains both UART and I2C code, and it requires the Wire library to be installed, even if you don't use I2C. See DFRobot's `uartI2CFlag`. This is strange because they could have put this into the `DFRobot_C4001_I2C` class and done all the shared work in a base class.
 
-* Advantage or Disadvantage? This library supports only the UART protocol, I2C (for the SEN0610 only) is not supported. I'm not sure why you would need to use I2C, because communications speed is not an issue.
+* Advantage or Disadvantage? This library supports only the UART protocol. I2C (for the SEN0610 only) is not supported. I'm not sure why you would need to use I2C, because communications speed is not an issue.
 
 
 ## Class Reference
 
-For details of each method, see the comments in the source code, [C4001mmWave.h](src/C4001mmWave.h).  
+For details of each method, see the comments in the source code, [C4001mmWave.h](src/C4001mmWave.h).
+
+The method names are the same as the UART commands, so you don't get confused.
 
 
 ```cpp
@@ -234,18 +236,18 @@ Parts of the example sketch can be modified or enabled to do different things, s
 
 ## References
 
-UART ASCII Protocol Document (in two places, in case one returns a 404)\
+**UART ASCII Protocol Document** (in two places, in case one returns a 404)\
 https://dfimg.dfrobot.com/wiki/20522/SEN0609_gravity-c4001-24ghz-mmwave-human-presence-detection-sensor_datasheet_V1.pdf
 https://dfimg.dfrobot.com/5ea64bf6cf1d8c7738ad2881/wiki/3b88a4ecd7d7f18918a0fa8ba1f970c6.pdf
 
-Iclegend S3KM1110 Data Sheet \
+**Iclegend S3KM1110 Data Sheet** \
 _I could not find one!_
 
-DFRobot Wiki \
+**DFRobot Wikis** \
 https://wiki.dfrobot.com/sen0609/ \
 https://wiki.dfrobot.com/sen0610/
 
-DFRobot Official Library \
+**DFRobot Official Library** \
 https://github.com/DFRobot/DFRobot_C4001
 
 
