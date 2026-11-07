@@ -262,7 +262,7 @@ https://github.com/DFRobot/DFRobot_C4001
 
 ## Joke of the Week
 
-Was Schrödinger's cat able to "think outside the box"?
+Was Schrödinger's cat able to think outside the box?
 
 
 <!--
