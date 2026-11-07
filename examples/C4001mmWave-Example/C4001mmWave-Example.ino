@@ -1,10 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Example Sketch for C4001mmWave Library
 // for DFRobot C4001 mmWave sensors, SKU SEN0609 & SEN0610, UART interface
-// Copyright (C) muman.ch and mumanchu, 2026.11.06
+// Copyright (C) muman.ch and mumanchu, 2026.11.07
 // 
 // https://github.com/mumanchu/C4001mmWave
 
+// Comment this out to remove the logging
 #define DEBUG
 
 #include "C4001mmWave.h"
@@ -19,7 +20,7 @@ C4001mmWave c4001;
 Uart Serial1(USART1);
 #endif
 
-#if defined(ARDUINO_ARCH_AVR) // || defined(ARDUINO_xxx)
+#if defined(ARDUINO_ARCH_AVR) || defined(ESP8266)
 // Use SoftwareSerial, RX=D6, TX=D7
 #include <SoftwareSerial.h>
 SoftwareSerial Serial1(6 /*rxPin*/, 7 /*txPin*/);
@@ -59,17 +60,38 @@ bool changeBaudRate(ulong newBaudRate)
 		return false;
 	}
 
-	// the response is returned at the new baud rate! 
-	// so this always times out and fails
+	// to activate the new baud rate, do reset-and-restart
+	// NOTE: The response to this message is at the new baud rate,
+	// so it always fails with a timeout
 	c4001.resetSystem();
-	delay(2000);
 
 	// continue at the new baud rate
 	Serial1.begin(newBaudRate);
 
-	// it must be started at the new baud rate
-	return c4001.sensorStart();
+	// back to Stop, resetSystem() puts it in Run mode
+	return c4001.sensorStop();
 }
+
+
+// Reset the sensor back to its factory default configuration
+// NOTE: The baud rate is set back to 9600!
+bool resetToFactoryDefaults()
+{
+	if (!c4001.resetCfg())
+		return false;
+
+	// activate the new configuration with reset-and-restart
+	// NOTE: If the baud rate is changed, the response is returned at 
+	// the new baud rate, so it always times out, ignore the response
+	c4001.resetSystem();
+
+	// continue at the restored default baud rate
+	Serial1.begin(9600);
+
+	// back to stop, resetSystem() puts it in Run mode
+	return c4001.sensorStop();
+}
+
 
 // Fatal error occurred
 void fatal(const char* msg)
@@ -80,11 +102,11 @@ void fatal(const char* msg)
 		yield();
 }
 
+
 // Get ready...
 void setup()
 {
-	// I use different pins for Serial logging
-	// this is only for the STM32 Nucleo-64 boards,
+	// I use different pins for Serial logging on the STM32 Nucleo-64 boards,
 	// else Serial is the USB port which is also used for download
 	#ifdef ARDUINO_NUCLEO_64
 	Serial.setTx(PC_10);
@@ -92,17 +114,17 @@ void setup()
 	#endif
 
 	Serial.begin(115200);
-	delay(1000);
+	delay(3000);
 
 	// PuTTY clear screen and scrollback
-	// patch out if not using PuTTY
+	// comment out if not using PuTTY
 	Serial.print("\033[2J\033[H\033[3J");
 
 	Serial.println("\r\nC4001mmWave-Example Started...\r\n");
 	Serial.flush();
 
-	// usually defaults to 9600 baud
-	// modify this after using changeBaudRate()
+	// the sensor's factory setting is 9600 baud
+	// modify this aftre calling changeBaudRate()
 	Serial1.begin(9600);
 
 	#if defined(ARDUINO_ARCH_ESP32)
@@ -111,10 +133,11 @@ void setup()
 	#endif
 
 	// the sensor remains in Stop after this, ready to receive commands 
+	// failure could be because the baud rate is wrong in Serial1.begin(xxx)
 	if (!c4001.begin(&Serial1))
 		fatal("begin() failed");
 
-	// display some information
+	// display some information about the board
 	char hwVersion[32];
 	c4001.getHWV(hwVersion);
 	char swVersion[32];
@@ -122,37 +145,40 @@ void setup()
 	ulong baudRate;
 	c4001.getUart(&baudRate);
 
-	// enable this to permanently change the baud rate, e.g. to 19200
+
+	// enable this to permanently change the baud rate
 	// update the baud rate in the Serial1.begin() call above for the next run
 	#if 0
-	if (!changeBaudRate(19200))
-		fatal("changeBaudRate() failed");
+	if (!changeBaudRate(19200))		// the desired baud rate, 4800..115200 
+		fatal("changeBaudRate() failed, invalid baud rate?");
+	c4001.getUart(&baudRate);
+	Serial.print("Baud rate changed to: ");
+	Serial.println(baudRate);
+	Serial.flush();
 	#endif
 
-	// configure the sensor here
+
+	// enable this to reset the configuration to factory defaults
+	// NOTE! This restores the baud rate to 9600!
+	#if 0
+	if (!resetToFactoryDefaults())
+		fatal("resetToFactoryDefaults() failed");
+	Serial.println("Configuration reset to factory defaults");
+	Serial.flush();
+	#endif
+
+
+	// Configure the sensor
 
 	#if 1
+	// Presence Detection mode
 
-	// Motion detection mode
+	// un-comment this if you want to read the current configuration
 	/*
-	// in case you want to read the configuration
-	bool microMotionEnabled;
-	c4001.getMicroMotion(&microMotionEnabled);
-	uint thresholdFactor;
-	c4001.getThresholdFactor(&thresholdFactor);
-	*/
-	// set default values
-	c4001.setMicroMotion(false);
-	c4001.setThresholdFactor(5);
-
-	if (!c4001.setRunApp(c4001.MotionDetectionMode))
-		fatal("retRunApp() failed");
-
-	#else
-
-	// Presence detection mode
-	/*
-	// in case you want to read the configuration
+	float minMetres, maxMetres;
+	c4001.getRange(&minMetres, &maxMetres);
+	float minMetres, maxMetres;
+	c4001.getRange(&minMetres, &maxMetres);
 	float trigRange;
 	c4001.getTrigRange(&trigRange);
 	uint trigSens, holdSens;
@@ -162,7 +188,9 @@ void setup()
 	float inhibitSecs;
 	c4001.getInhibit(&inhibitSecs);
 	*/
+
 	// set default values
+	c4001.setRange(0.6f, 6.0f);		// minMetres = "not recommended to modify"
 	c4001.setTrigRange(6.0f);
 	c4001.setSensitivity(5, 7);
 	c4001.setLatency(0.05f, 15.0f);
@@ -171,21 +199,47 @@ void setup()
 	if (!c4001.setRunApp(c4001.PresenceDetectionMode))
 		fatal("retRunApp() failed");
 
+	#else
+	// Motion Detection mode
+
+	// un-comment this if you want to read the current configuration
+	/*
+	float minMetres, maxMetres;
+	c4001.getRange(&minMetres, &maxMetres);
+	bool microMotionEnabled;
+	c4001.getMicroMotion(&microMotionEnabled);
+	uint thresholdFactor;
+	c4001.getThresholdFactor(&thresholdFactor);
+	*/
+
+	// set default values
+	c4001.setRange(0.6f, 6.0f);		// minMetres = "not recommended to modify"
+	c4001.setMicroMotion(false);
+	c4001.setThresholdFactor(5);
+
+	if (!c4001.setRunApp(c4001.MotionDetectionMode))
+		fatal("retRunApp() failed");
 	#endif
 
-	// could save the configuration to flash 
-	// so we don't have to configure it again
+
+	// enable this to save the configuration to Flash memory
+	// this configuration is restored the next time it starts up
+	// must be in Stop
 	#if 0
-	c4001.sensorStop();
 	if (!c4001.saveConfig()) {
-		//could be "no parameter has changed", that's not an error
-		//fatal("saveConfig failed");
+		// response can be "no parameter has changed", that's not an error
+		fatal("saveConfig failed");
 	}
+	// NOTE! sensorStart() must be called to finalize (it's called below)
 	#endif
 
 	// start active reporting mode
+	// loop() polls for the $DFDxx messages
 	c4001.sensorStart();
+
+	Serial.println();
 }
+
 
 // Go!
 void loop() 
@@ -193,22 +247,29 @@ void loop()
 	// active reporting message received?
 	if (c4001.receive(NULL)) {
 
+		// (if you already know the mode $DFDMD or $DFHPD, you can skip the strncmp())
+
 		// Motion Detection message
 		if (strncmp(c4001.getRxBuf(), "$DFDMD", 6) == 0) {
 			uint numTargets;	// always 0 or 1?
 			float targetDistance, targetSpeed, targetEnergy;
 			c4001.parseDFDMD(&numTargets, &targetDistance, &targetSpeed, &targetEnergy);
-			//TODO add your own presence detection code here
+
+			//TODO process motion detection values
 		}
 
 		// Presence Detection message
-		else if (strncmp(c4001.getRxBuf(), "$DFDPD", 6) == 0) {
+		else if (strncmp(c4001.getRxBuf(), "$DFHPD", 6) == 0) {
 			bool presenceDetected;
 			c4001.parseDFHPD(&presenceDetected);
+
+			//TODO process presence detection state
 		}
 	}
 
-	// simple schedulers (not used)
+
+	// simple scheduler example (not used)
+	#if 0
 	ulong ms = millis();
 
 	// 500mS scheduler
@@ -228,5 +289,6 @@ void loop()
 		t2 = ms;
 		//TODO do something every second
 	}
+	#endif
 
 }
