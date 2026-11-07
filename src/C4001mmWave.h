@@ -4,7 +4,7 @@
 // Arduino Library for DFRobot C4001 mmWave Presence Sensors
 // for DFRobot C4001 mmWave sensors, SKU SEN0609 & SEN0610, UART interface
 // 
-// Copyright (C) https://muman.ch + https://github.com/mumanchu, 2026.11.06
+// Copyright (C) https://muman.ch + https://github.com/mumanchu, 2026.11.07
 // If you re-use this software, please include the above copyright notice
 //
 // For full details see,
@@ -19,13 +19,15 @@ typedef unsigned int uint;
 extern bool stringToFloat(const char* psz, float* result, char** pszEnd);
 extern bool floatToString(float value, char* psz, unsigned int decimalPlaces);
 
-// For error and data logging
+// For DEBUG error and data logging
 #ifdef DEBUG
 #define C4001_LOGERROR(s) { Serial.println(s); Serial.flush(); }
 #define C4001_PRINT(s) { Serial.print(s); Serial.flush(); }
+#define C4001_ASSERT(b, s) if (!(b)) { C4001_LOGERROR(s); return false; }
 #else
 #define C4001_LOGERROR(s)
 #define C4001_PRINT(s)
+#define C4001_ASSERT(b, s)
 #endif
 
 
@@ -68,8 +70,10 @@ public:
 	bool resetSystem();
 
 	// Configuration
+	// Both modes
 	bool setRange(float minMetres, float maxMetres);
 	bool getRange(float* minMetres, float* maxMetres);
+	// Presence detection mode
 	bool setTrigRange(float rangeInMetres);
 	bool getTrigRange(float* rangeInMetres);
 	bool getSensitivity(uint* holdSensitivity, uint* trigSensitivity);
@@ -78,12 +82,17 @@ public:
 	bool getLatency(float* confirmationLatency, float* disappearanceLatency);
 	bool setInhibit(float seconds);
 	bool getInhibit(float* seconds);
-	bool setUart(ulong baudRate);
-	bool getUart(ulong* baudRate);
+	// Motion detection mode
 	bool setMicroMotion(bool enabled);
 	bool getMicroMotion(bool* enabled);
 	bool setThresholdFactor(uint factor);
 	bool getThresholdFactor(uint* factor);
+	// Baud rate
+	bool setUart(ulong baudRate);
+	bool getUart(ulong* baudRate);
+
+	char* getRxBuf() { return rxBuf; }
+	bool receive(const char* messageSent);
 
 	// These do not work on my boards, but they are in the DFRobot library
 	#if 0
@@ -92,9 +101,6 @@ public:
 	bool setPwm(uint pwm1, uint pwm2, uint timer);
 	bool getPwm(uint* pwm1, uint* pwm2, uint* timer);
 	#endif
-
-	char* getRxBuf() { return rxBuf; }
-	bool receive(const char* messageSent);
 
 protected:
 	bool parseVersion(bool bsw, char* version);
@@ -105,9 +111,10 @@ protected:
 	bool awaitPrompt();
 };
 
+
 // Initialisation
-// on return, the sensor is on Stop Mode
-// 'Stream* serial' can be the address of a HarwareSerial or SoftwareSerial stream
+// 'Stream* serial' can be the address of a HardwareSerial or SoftwareSerial stream
+// on return, the sensor is on Stop mode
 bool C4001mmWave::begin(Stream* serial)
 {
 	this->stream = serial;
@@ -116,6 +123,7 @@ bool C4001mmWave::begin(Stream* serial)
 	while (millis() < 1000)
 		yield();
 
+	// ensure it's in Stop
 	return sensorStop();
 }
 
@@ -240,16 +248,17 @@ bool C4001mmWave::parseVersion(bool bsw, char* version)
 //                 MotionDetectionMode   for $DFDMD messages
 bool C4001mmWave::setRunApp(C4001Mode detectionMode)
 {
-	C4001_PRINT(detectionMode ? "\r\nMotion Detection Mode Set\r\n" : 
-		"\r\nPresence Detection Mode Set\r\n");
+	C4001_PRINT("\r\nSent: \"");
+	C4001_PRINT("setRunApp ");
+	C4001_PRINT(detectionMode);
+	C4001_PRINT("\"\r\n");
 
 	sprintf(txBuf, "setRunApp %u\r\n", detectionMode);
 	stream->write(txBuf);
 	rxState = 0;
 
-	// the protocol document says this command has no response
-	// but it responds with "DFRobot:/>", preceded by garbage characters
-	// so we wait for the '>', with a timeout
+	// for some commands, the protocol document says the command has no response, 
+	// but it does respond with "DFRobot:/>", preceded by some random characters
 	return awaitPrompt();
 }
 
@@ -267,7 +276,7 @@ bool C4001mmWave::sensorStop()
 // keepState : false = start module with no detection (default)
 //             true  = start module with last detection state
 // (?? The response is often "sensor started already" even when it was stopped)
-bool C4001mmWave::sensorStart(bool keepState/*=false*/)
+bool C4001mmWave::sensorStart(bool keepState /*=false*/)
 {
 	return sendMessageAndGetResponse(keepState ? "sensorStart 1" : "sensorStart");
 }
@@ -276,26 +285,39 @@ bool C4001mmWave::sensorStart(bool keepState/*=false*/)
 // if not saved, changes will be lost on the next restart
 bool C4001mmWave::saveConfig()
 {
-	return sendMessageAndGetResponse("saveConfig");
+	bool ok = sendMessageAndGetResponse("saveConfig");
+	// response can be "no parameter has changed",
+	// that's not an error
+	if (!ok) {
+		if (strstr(rxBuf, "changed") != NULL)
+			return true;
+	}
+	return ok;
 }
 
-// Restore all configuration parametres to their factory default values
-// the baud rate reverts to 9600
+// Restore all configuration parameters to their factory default values
+// NOTE! The baud rate reverts to 9600!
 bool C4001mmWave::resetCfg()
 {
 	return sendMessageAndGetResponse("resetCfg");
 }
 
 // Do a software reset and restart
-// "resetSystem 1" would put it into bootloader mode, but we don't need that
+// NOTE! On return, the sensor is in Run mode
+// *** Some FW versions may start returning $ messages after "resetSystem 0"
+// *** Sometimes the sensor hangs for 20 seconds after this command
 bool C4001mmWave::resetSystem()
 {
+	C4001_PRINT("\r\nSent: \"");
+	C4001_PRINT("resetSystem 0");
+	C4001_PRINT("\"\r\n");
+
+	// ("resetSystem 1" would put it into bootloader mode, but we don't need that)
 	stream->write("resetSystem 0\r\n");
 	rxState = 0;
 
-	// the protocol document says this command has no response
-	// but it responds with "DFRobot:/>", preceded by garbage characters
-	// so we wait for the '>', with a timeout
+	// for some commands, the protocol document says the command has no response, 
+	// but it does respond with "DFRobot:/>", preceded by some random characters
 	return awaitPrompt();
 }
 
@@ -314,14 +336,17 @@ bool C4001mmWave::resetSystem()
 // This accesses different data depending on the mode:
 //   In Presence Detection Mode it sets the range for presence detection.
 //   In Motion Detection Mode it sets the range for motion detection.
-//   Presence detection mode : Response 0.600 6.000
-//   Motion detection mode   : Response 0.000 26.000
 // <<<
 // minMetres : Minimum detection distance in metres, 0.6..25, default=0.6
 //             the manual says "not recommended to modify"
 // maxMetres : Maximum detection distance in metres, minMetres..25, default=6
 bool C4001mmWave::setRange(float minMetres, float maxMetres)
 {
+	// minMetres = "not recommended to modify", so keep it at 0.6m
+	minMetres = 0.6f;
+
+	C4001_ASSERT(maxMetres >= minMetres && maxMetres <= 25.0f, "bad param");
+
 	strcpy(txBuf, "setRange ");
 	if (!formatFloats(2, minMetres, maxMetres))
 		return false;
@@ -329,8 +354,8 @@ bool C4001mmWave::setRange(float minMetres, float maxMetres)
 }
 bool C4001mmWave::getRange(float* minMetres, float* maxMetres)
 {
-	*minMetres = 0.6f;	// defaults
-	*maxMetres = 6.0f;
+	*minMetres = 0.0f;
+	*maxMetres = 0.0f;
 	if (!sendMessageAndGetResponse("getRange"))
 		return false;
 	return getFloats(minMetres, maxMetres);
@@ -342,13 +367,15 @@ bool C4001mmWave::getRange(float* minMetres, float* maxMetres)
 // rangeInMetres : 0..25m, default = 6m
 bool C4001mmWave::setTrigRange(float rangeInMetres)
 {
+	C4001_ASSERT(rangeInMetres >= 0.0f && rangeInMetres <= 25.0f, "bad param");
+
 	strcpy(txBuf, "setTrigRange ");
 	floatToString(rangeInMetres, txBuf + 13, 3);
 	return sendMessageAndGetResponse(txBuf);
 }
 bool C4001mmWave::getTrigRange(float* rangeInMetres)
 {
-	*rangeInMetres = 6.0f;	// default
+	*rangeInMetres = 0.0f;
 	if (!sendMessageAndGetResponse("getTrigRange"))
 		return false;
 	return getFloats(rangeInMetres);
@@ -363,6 +390,9 @@ bool C4001mmWave::getTrigRange(float* rangeInMetres)
 // range 0..9, 255 = unchanged, typically between 2 and 6
 bool C4001mmWave::setSensitivity(uint triggerSensitivity, uint holdSensitivity)
 {
+	C4001_ASSERT(triggerSensitivity < 10 || triggerSensitivity == 255, "bad param");
+	C4001_ASSERT(holdSensitivity < 10 || holdSensitivity == 255, "bad param");
+
 	sprintf(txBuf, "setSensitivity %u %u", holdSensitivity, triggerSensitivity);
 	return sendMessageAndGetResponse(txBuf);
 }
@@ -386,6 +416,9 @@ bool C4001mmWave::getSensitivity(uint* triggerSensitivity, uint* holdSensitivity
 // disappearanceLatency : the time to detect no presence, 0.5..1500 seconds, default=15
 bool C4001mmWave::setLatency(float confirmationLatency, float disappearanceLatency)
 {
+	C4001_ASSERT(confirmationLatency >= 0.0f && confirmationLatency <= 100.0f, "bad param");
+	C4001_ASSERT(disappearanceLatency >= 0.5f && disappearanceLatency <= 1500.0f, "bad param");
+
 	strcpy(txBuf, "setLatency ");
 	if (!formatFloats(2, confirmationLatency, disappearanceLatency))
 		return false;
@@ -393,8 +426,8 @@ bool C4001mmWave::setLatency(float confirmationLatency, float disappearanceLaten
 }
 bool C4001mmWave::getLatency(float* confirmationLatency, float* disappearanceLatency)
 {
-	*confirmationLatency = 0.05f;
-	*disappearanceLatency = 15.0f;
+	*confirmationLatency = 0.0f;
+	*disappearanceLatency = 0.0f;
 	if (!sendMessageAndGetResponse("getLatency"))
 		return false;
 	return getFloats(confirmationLatency, disappearanceLatency);
@@ -408,6 +441,8 @@ bool C4001mmWave::getLatency(float* confirmationLatency, float* disappearanceLat
 // range 0.1 .. 255, default = 1 second
 bool C4001mmWave::setInhibit(float seconds)
 {
+	C4001_ASSERT(seconds >= 0.1f && seconds <= 255.0f, "bad param");
+
 	strcpy(txBuf, "setInhibit ");
 	if (!formatFloats(1, seconds))
 		return false;
@@ -415,11 +450,58 @@ bool C4001mmWave::setInhibit(float seconds)
 }
 bool C4001mmWave::getInhibit(float* seconds)
 {
-	*seconds = 1.0f;
+	*seconds = 0.0f;
 	if (!sendMessageAndGetResponse("getInhibit"))
 		return false;
 	return getFloats(seconds);
 }
+
+
+// Configure the sensor for Micro Motion detection
+// **Motion Detection Mode only**
+// enabled : false = Disable micro motion detection (default)
+//           true  = Enable micro motion detection
+bool C4001mmWave::setMicroMotion(bool enabled)
+{
+	sprintf(txBuf, "setMicroMotion %u", enabled);
+	return sendMessageAndGetResponse(txBuf);
+}
+bool C4001mmWave::getMicroMotion(bool* enabled)
+{
+	*enabled = false;
+	if (!sendMessageAndGetResponse("getMicroMotion"))
+		return false;
+	char* data = getResponseData();
+	if (!data)
+		return false;
+	*enabled == *data == '1';
+	return true;
+}
+
+// Set/get the detection threshold
+// **Motion Detection Mode only**
+// Increase threshold to detect larger objects, 
+// decrease to detect smaller objects
+// default = 5, the range is not specified in the documentation
+bool C4001mmWave::setThresholdFactor(uint factor)
+{
+	// what's the range?
+	C4001_ASSERT(factor <= 65535, "bad param");
+
+	sprintf(txBuf, "setThrFactor %u", factor);
+	return sendMessageAndGetResponse(txBuf);
+}
+bool C4001mmWave::getThresholdFactor(uint* factor)
+{
+	*factor = 0;
+	if (!sendMessageAndGetResponse("getThrFactor"))
+		return false;
+	char* data = getResponseData();
+	if (!data)
+		return false;
+	return sscanf(data, "%u", factor) == 1;
+}
+
 
 // Set/get the baud rate, 4800..115200
 // After setting the UART baud rate, parameters must be saved and the module 
@@ -458,89 +540,9 @@ bool C4001mmWave::getUart(ulong* baudRate)
 	return *endPtr == '\0';
 }
 
-// Configure the sensor for Micro Motion detection
-// **Motion Detection Mode only**
-// enabled : false = Disable micro motion detection (default)
-//           true  = Enable micro motion detection
-bool C4001mmWave::setMicroMotion(bool enabled)
-{
-	sprintf(txBuf, "setMicroMotion %u", enabled);
-	return sendMessageAndGetResponse(txBuf);
-}
-bool C4001mmWave::getMicroMotion(bool* enabled)
-{
-	*enabled = false;
-	if (!sendMessageAndGetResponse("getMicroMotion"))
-		return false;
-	char* data = getResponseData();
-	if (!data)
-		return false;
-	*enabled == *data == '1';
-	return true;
-}
-
-// Set/get the detection threshold
-// **Motion Detection Mode only**
-// Increase threshold to detect larger objects, 
-// decrease to detect smaller objects
-// default = 5, the range is not specified in the documentation
-bool C4001mmWave::setThresholdFactor(uint factor)
-{
-	sprintf(txBuf, "setThrFactor %u", factor);
-	return sendMessageAndGetResponse(txBuf);
-}
-bool C4001mmWave::getThresholdFactor(uint* factor)
-{
-	*factor = 5;
-	if (!sendMessageAndGetResponse("getThrFactor"))
-		return false;
-	char* data = getResponseData();
-	if (!data)
-		return false;
-	return sscanf(data, "%u", factor) == 1;
-}
-
-// These do not work on my boards, but they are in the DFRobot library
-#if 0
-bool C4001mmWave::setGpioMode(bool mode)
-{
-	sprintf(txBuf, "setGpioMode 1 %u", mode);
-	return sendMessageAndGetResponse(txBuf);
-}
-bool C4001mmWave::getGpioMode(bool* mode)
-{
-	if (!sendMessageAndGetResponse("getGpioMode 1"))
-		return false;
-	char* data = getResponseData();
-	if (!data)
-		return false;
-	uint a, b;
-	if (sscanf(data, "%u %u", &a, &b) != 2)
-		return false;
-	*mode = (bool)b;
-	return true;
-}
-
-bool C4001mmWave::setPwm(uint pwm1, uint pwm2, uint timer)
-{
-	sprintf(txBuf, "setPwm %u %u %u", pwm1, pwm2, timer);
-	return sendMessageAndGetResponse(txBuf);
-}
-bool C4001mmWave::getPwm(uint* pwm1, uint* pwm2, uint* timer)
-{
-	if (!sendMessageAndGetResponse("getPwm"))
-		return false;
-	char* data = getResponseData();
-	if (!data)
-		return false;
-	return sscanf(data, "%u %u %u", pwm1, pwm2, timer) == 3;
-}
-#endif
-
-
-// A simple state machine to receive incoming messages, 
-// either a response to a sent message (messageSent), 
-// or a $DFHPD or $DFDMD message (messageSent == NULL). 
+// A simple state machine to receive incoming messages 
+// Either a response to a sent message (messageSent), or an "active 
+// reporting message" $DFHPD or $DFDMD when messageSent == NULL. 
 // A state machine is needed so it can receive the next message even 
 // when it starts in the middle of a message or a message was corrupted.
 // messageSent : this is the message for which we need the response, the 
@@ -550,7 +552,10 @@ bool C4001mmWave::receive(const char* messageSent)
 {
 	while (stream->available()) {
 		char ch = stream->read();
-		C4001_PRINT(ch);
+
+		// receiving an "active reporting message"
+		if (messageSent == NULL)
+			C4001_PRINT(ch);
 
 		// $ always restarts
 		if (ch == '$')
@@ -616,7 +621,7 @@ bool C4001mmWave::receive(const char* messageSent)
 				rxState = 0;
 				gotResponse = true;
 
-				C4001_PRINT("\r\nReceived: \"");
+				C4001_PRINT("Received: \"");
 				C4001_PRINT(rxBuf);
 				C4001_PRINT("\"\r\n");
 
@@ -637,6 +642,43 @@ bool C4001mmWave::receive(const char* messageSent)
 	}
 	return false;
 }
+
+// These do not work on my boards, but they are in the DFRobot library
+#if 0
+bool C4001mmWave::setGpioMode(bool mode)
+{
+	sprintf(txBuf, "setGpioMode 1 %u", mode);
+	return sendMessageAndGetResponse(txBuf);
+}
+bool C4001mmWave::getGpioMode(bool* mode)
+{
+	if (!sendMessageAndGetResponse("getGpioMode 1"))
+		return false;
+	char* data = getResponseData();
+	if (!data)
+		return false;
+	uint a, b;
+	if (sscanf(data, "%u %u", &a, &b) != 2)
+		return false;
+	*mode = (bool)b;
+	return true;
+}
+
+bool C4001mmWave::setPwm(uint pwm1, uint pwm2, uint timer)
+{
+	sprintf(txBuf, "setPwm %u %u %u", pwm1, pwm2, timer);
+	return sendMessageAndGetResponse(txBuf);
+}
+bool C4001mmWave::getPwm(uint* pwm1, uint* pwm2, uint* timer)
+{
+	if (!sendMessageAndGetResponse("getPwm"))
+		return false;
+	char* data = getResponseData();
+	if (!data)
+		return false;
+	return sscanf(data, "%u %u %u", pwm1, pwm2, timer) == 3;
+}
+#endif
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -759,20 +801,28 @@ bool C4001mmWave::sendMessageAndGetResponse(const char* message)
 	return true;
 }
 
-// For some commands, the protocol document says the command has 
-// no response - but it does respond with "DFRobot:/>", preceded 
-// by some garbage characters, so we wait for '>', with a timeout
+// For some commands, the protocol document says the command has no response, 
+// but it does respond with "DFRobot:/>", preceded by some random characters
 bool C4001mmWave::awaitPrompt()
 {
 	ulong start = millis();
+
+	static const char prompt[] = "DFRobot:/>";
+	uint ixPrompt = 0;
+
 	while (1) {
 		while (stream->available()) {
 			char ch = stream->read();
-			// end of "DFRobot:/>"
-			if (ch == '>') {
-				C4001_PRINT("Received: \"DFRobot:/>\"\r\n");
-				return true;
+			C4001_PRINT(ch);
+			if (ch == prompt[ixPrompt]) {
+				if (ch == '>') {
+					C4001_PRINT("\n\rReceived: \"DFRobot:/>\"\n\r");
+					return true;
+				}
+				++ixPrompt;
 			}
+			else
+				ixPrompt = 0;
 		}
 		if ((millis() - start) > 1500)
 			break;
