@@ -246,7 +246,7 @@ https://wiki.dfrobot.com/sen0609/ \
 https://wiki.dfrobot.com/sen0610/
 
 DFRobot Official Library \
-https://github.com/cdjq/DFRobot_C4001
+https://github.com/DFRobot/DFRobot_C4001
 
 
 ## Revision History
