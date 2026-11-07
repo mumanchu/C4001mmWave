@@ -30,7 +30,7 @@ Since they use a kind of radar, they can easily see through a plastic protective
 
 ### Information about the boards used for the tests
 
-You may find there are differences in behaviour with different versions of the firmware. These are the versions for my two boards. Please let me know if you find differences with your board's firmware.
+You may find there are differences in behaviour with different versions of the firmware. These are the versions for my two boards. Please let me know if you find any differences with your board's firmware.
 
 SEN0610 12m \
 HardwareVersion: JYSJ_426_A01_H \
