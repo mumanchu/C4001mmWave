@@ -1,22 +1,20 @@
 
 ## Arduino Library for DFRobot C4001 mmWave Presence Sensors 
 
-This library supports UART (RX/TX) communications only, using DFRobot's command-line style ASCII protocol. I2C is not supported.
-
-It can use `SoftwareSerial` or `HardwareSerial` (via a `Stream` pointer), with baud rates of 4800 to 115200. The default baud rate is 9600, but you can reconfigure that up to 115200 baud (see example sketch).
-
-It works for these two DFRobot modules, which run on 3.3V or 5V,
+This library works for these two DFRobot modules, which run on 3.3V or 5V,
 * SKU **SEN0609**, C4001 mmWave, 25m, UART only
 * SKU **SEN0610**, C4001 mmWave, 12m, UART or I2C (switch selectable), this library only supports UART
 
-Other DFRobot modules use different RX/TX protocols (ASCII or binary). This library will not work with those.
+It supports UART (RX/TX) communications only, using DFRobot's command-line style ASCII protocol. I2C is not supported. Other DFRobot modules use different RX/TX protocols (ASCII or binary), this library will not work with those.
+
+Either `SoftwareSerial` or `HardwareSerial` can be used, via a `Stream` pointer, with baud rates of 4800 to 115200. The default baud rate is 9600, but you can reconfigure that up to 115200 baud (see example sketch).
 
 <img height="300" alt="image" src="images/c4001-boards.jpg" />
 
 
 Both these DFRobot boards use the ICLegend S3KM1110 mmWave sensor. This is a system-on-a-chip (SoC) device which has been programmed by DFRobot to support their proprietary ASCII protocol.
 
-There are two on-board LEDs. The green LED means it's in RUN mode. The white LED follows the state of the OUT pin (presence or motion detected). 
+There are two on-board LEDs. The green LED is on when it's Running (active reporting mode). The white LED follows the state of the OUT pin (presence or motion detected). 
 
 I like these boards because they are relatively easy to configure. They do not need a PC application to set them up.
 
@@ -28,6 +26,19 @@ Since they use a kind of radar, they can easily see through a plastic protective
 
 > [!NOTE]
 > The smaller 12m range board (SEN0610) has a switch on the back to select I2C or UART communications. This must be switched to UART mode. The larger 25m range board (SEN0609) has only UART mode.
+
+
+### Information about the boards used for the tests
+
+You may find there are differences in behaviour with different versions of the firmware. These are the versions for my two boards. Please let me know if you find differences with your board's firmware.
+
+SEN0610 12m \
+HardwareVersion: JYSJ_426_A01_H \
+SoftwareVersion: JYSJ_01.00.08.240220
+
+SEN0609 25m \
+HardwareVersion: JYSJ_428_A01_H \
+SoftwareVersion: JYSJ_01.00.07.240125
 
 
 ## Operating Modes
@@ -49,12 +60,9 @@ _Motion detection_ returns much more detailed information in a "$DFDMD ..." mess
 
 > [!NOTE]
 > For the 25m version, the data sheet states, "a presence detection range of 16 meters, and a motion detection and distance measurement range of 25 meters". I think this means that beyond 16m, the 25m version works only for motion detection. Both presence and motion detection will work up to 16m, and motion detection works only between 16m and 25m. \
-> \
-> **So it may be better to keep the sensor in _motion detection_ mode and use motion to detect presence, maintaining your own 'presence' state with a timeout if no motion is detected after a certain period.**
 
 > [!NOTE]
-> Yet another NOTE that I found in the data sheet, "The C4001 millimeter wave presence sensor is not specifically designed for distance measurement. The distance is currently not calibrated in the current version, so the distance can only be used as a reference and may have some deviation or error." \
-> **So ignore the `targetDistance` value too.** 
+> Another note that I found in the data sheet, "The C4001 millimeter wave presence sensor is not specifically designed for distance measurement. The distance is currently not calibrated in the current version, so the distance can only be used as a reference and may have some deviation or error." So ignore the `targetDistance` value. 
 
 When in Run, report messages are sent continuously to the master. These should be polled from `loop()` by calling `C4001::receive()`. Received ASCII messages are then parsed with `parseDFHPD()` or `parseDFDMD()` to return individual values.
 
@@ -64,18 +72,23 @@ void loop()
     // active reporting message received?
     if (c4001.receive(NULL)) {
 
-        // Motion Detection message received
+        // (if you already know the mode $DFDMD or $DFHPD, you can skip the strncmp())
+
+        // Motion Detection message
         if (strncmp(c4001.getRxBuf(), "$DFDMD", 6) == 0) {
-            uint numTargets;	// always 0 or 1?
+            uint numTargets;		// always 0 or 1?
             float targetDistance, targetSpeed, targetEnergy;
             c4001.parseDFDMD(&numTargets, &targetDistance, &targetSpeed, &targetEnergy);
-            //TODO add your own presence detection code here
+
+            //TODO process motion detection values
         }
 
-        // Presence Detection message received
-        else if (strncmp(c4001.getRxBuf(), "$DFDPD", 6) == 0) {
+        // Presence Detection message
+        else if (strncmp(c4001.getRxBuf(), "$DFHPD", 6) == 0) {
             bool presenceDetected;
             c4001.parseDFHPD(&presenceDetected);
+
+            //TODO process presence detection state
         }
     }
 }
@@ -86,6 +99,8 @@ void loop()
 ## Flash Memory for Storing the Configuration
 
 It is not necessary to configure the chip every time it starts up. Once a suitable configuration has been tested, it can be programmed into Flash memory so it is restored automatically when the chip powers up. To store the current configuration, which includes the baud rate (if changed), call `saveConfig()`.
+
+The example sketch has some code to do this.
 
 Once configured, you don't need to poll for _active data reporting_ messages to detect a presence or motion (unless you need the motion detection details). You can just examine the state of the OUT Pin. 
 
@@ -99,16 +114,14 @@ After calling `saveConfig()`, you must send either the command to start the modu
 
 ## Changing the UART Baud Rate
 
-The baud rate can be changed, but the DFRobot library does not help you. It says "the baud rate cannot be changed" (see `motionDetection.ino`, line 30).
-
 The _mumanchu_ example sketch contains a function called `changeBaudRate(ulong newBaudRate)` which will do this for you and save the new baud rate in Flash memory.
 
-After `changeBaudRate()` has been run, you must modify the `Serial1` baud rate in `Serial1.begin(xxx)` so the new baud rate will be used.
+After `changeBaudRate()` has been run, you must modify `Serial1.begin(baudRate)` so the new baud rate will be used the next time the program runs.
 
-To change it back to the default, just call `changeBaudRate(9600)`.
+To change it back to the default, call `changeBaudRate(9600)` or `resetToFactoryDefaults()`.
 
 > [!NOTE]
-> The data sheet says the default baud rate is 115200 bps. This was not the case for my two boards, they were both configured for 9600 bps. 
+> The data sheet says the default baud rate is 115200 bps. This was not the case for my two boards, they were both configured for 9600 bps. The factory reset restores the baud rate to 9600.
 
 
 ## Advantages of This Library
@@ -117,19 +130,21 @@ To change it back to the default, just call `changeBaudRate(9600)`.
 
 * Has its own optimised floating point conversion routines to/from character arrays, in `FloatUtils.cpp`.
 
-* Does not use the `String` class and string concatenation. `String` uses `malloc()` and `free()` copiously. This is not good practice because memory fragmentation can occur in devices with small RAM, and it will silently and randomly crash if this happens. 
+* Does not use the `String` class and string concatenation. The `String` class is used a lot by the DFRobot library. `String` uses `malloc()`, `realloc()` and `free()`, which is not good practice because memory fragmentation can occur in devices with a small amounts of RAM, and it will silently and randomly crash if this happens. 
 
-* Full communications error detection, with timeouts. Every method returns `true` (success) or `false` (failed). Data is returned via pointer parameters.
+* Has full communications error detection, with timeouts. Every method returns `true` (success) or `false` (failed). Data is returned via pointer parameters.
 
-* Debug output is enabled/disabled with `#define DEBUG`, using the `C4001_LOGERROR(s)` and `C4001_PRINT(s)` macros.
+* Debug output is enabled/disabled with `#define DEBUG`, using the `C4001_LOGERROR(s)` and `C4001_PRINT(s)` macros. Also validates the configuration parameters using `C4001_ASSERT()`.
 
 * Has a state machine for processing UART messages received from the mmWave board. This detects corrupted messages, and works if reading starts in the middle of a message.
 
 * The example sketch shows how to change the baud rate and save it to Flash memory, see `changeBaudRate(ulong newBaudRate)`.
 
+* The example sketch also shows how the reset the configuration back to the factory defaults, see `resetToFactoryDefaults()`.
+
 * Useful descriptions of each method, to help understand what it does, and why.
 
-* Efficient code. This library does not repeat the same code in multiple methods, which cannot be optimised by the compiler. The DFRobot library contains both UART and I2C code, even if you don't use I2C. See DFRobot's `uartI2CFlag`. This is strange because they could have put this into the `DFRobot_C4001_I2C` class and done all the shared work in a base class.
+* Efficient code. This library does not repeat the same code in multiple methods, which cannot be optimised by the compiler. The DFRobot library contains both UART and I2C code, and it requires the Wire library to be installed, even if you don't use I2C. See DFRobot's `uartI2CFlag`. This is strange because they could have put this into the `DFRobot_C4001_I2C` class and done all the shared work in a base class.
 
 * Advantage or Disadvantage? This library supports only the UART protocol, I2C (for the SEN0610 only) is not supported. I'm not sure why you would need to use I2C, because communications speed is not an issue.
 
@@ -147,8 +162,8 @@ public:
     // Sensor operating modes for setRunApp()
     enum C4001Mode : uint
     {
-        PresenceDetectionMode = 0,  // returns $DFHPD messages
-        MotionDetectionMode = 1     // returns $DPDMD messages
+        PresenceDetectionMode = 0,	// returns $DFHPD messages
+        MotionDetectionMode = 1		// returns $DPDMD messages
     };
 
     bool begin(Stream* serial);
@@ -169,8 +184,10 @@ public:
     bool resetSystem();
 
     // Configuration
+    // Both modes
     bool setRange(float minMetres, float maxMetres);
     bool getRange(float* minMetres, float* maxMetres);
+    // Presence detection mode
     bool setTrigRange(float rangeInMetres);
     bool getTrigRange(float* rangeInMetres);
     bool getSensitivity(uint* holdSensitivity, uint* trigSensitivity);
@@ -179,20 +196,14 @@ public:
     bool getLatency(float* confirmationLatency, float* disappearanceLatency);
     bool setInhibit(float seconds);
     bool getInhibit(float* seconds);
-    bool setUart(ulong baudRate);
-    bool getUart(ulong* baudRate);
+    // Motion detection mode
     bool setMicroMotion(bool enabled);
     bool getMicroMotion(bool* enabled);
     bool setThresholdFactor(uint factor);
     bool getThresholdFactor(uint* factor);
-
-    // These do not work on my boards, but they are in the DFRobot library
-    #if 0
-    bool setGpioMode(bool mode);        // setIoPolaity()
-    bool getGpioMode(bool* mode);       // getIoPolaity()
-    bool setPwm(uint pwm1, uint pwm2, uint timer);
-    bool getPwm(uint* pwm1, uint* pwm2, uint* timer);
-    #endif
+    // Baud rate
+    bool setUart(ulong baudRate);
+    bool getUart(ulong* baudRate);
 
     char* getRxBuf() { return rxBuf; }
     bool receive(const char* messageSent);
@@ -209,13 +220,14 @@ The mmWave board works with 3.3V or 5V. If your MCU is 5V, connect 5V to the mmW
 
 Some MCUs, like the Arduino Uno, do not support more than one hardware serial port, so you must use `SoftwareSerial` for `Serial1`, as shown in the example sketch. You will need to include the `SoftwareSerial` platform library.
 
-Connect the MCU's `Serial1` TX pin to the mmWave board's RX pin, and connect the MCU's RX to the mmWave's TX pin. The comments in the example sketch show the most common `Serial1` pin numbers, according to your MCU. If you have problems, use `SoftwareSerial Serial1(rxPin, txPin)` channel which can usually use any GPIO pins. Note that `SoftwareSerial` may not work reliably over 38400 Baud.
+Connect the MCU's `Serial1` TX pin to the mmWave board's RX pin, and connect the MCU's RX to the mmWave's TX pin. The comments in the example sketch show the most common `Serial1` pin numbers, according to your MCU. If you have problems, use a `SoftwareSerial Serial1(rxPin, txPin)` channel which can usually use any GPIO pins. Note that `SoftwareSerial` may not work reliably over 38400 Baud.
 
 Parts of the example sketch can be modified or enabled to do different things, see the `#if` statements.
 
 * The definition of the `Serial1` port for the mmWave sensor depends on your MCU and architecture. The example sketch contains definitions for some common MCUs. If in doubt, use `SoftwareSerial Serial1(rxPin, txPin)`.
 * The code to change the baud rate can be enabled. It's disabled by default.
-* The code to configure it for Presence Detection or Motion Detection can be selected. The default is Motion Detection.
+* The code to reset to factory defaults can be enabled. This also resets the baud rate to 9600.
+* The code to configure it for Presence Detection or Motion Detection can be selected. The default is Presence Detection.
 * The code to save the new configuration to Flash can be enabled. It's disabled by default.
 
 
@@ -241,7 +253,7 @@ https://github.com/cdjq/DFRobot_C4001
 
 | Date       | Revision | Description  |
 |:---------- |:---------| :----------- |
-| 2026.11.06 | 0.0.0    | Preliminary. Tested on STM32 Nucleo-64, Arduino Zero, Arduino Uno and ESP32-C3-DevKitC. |
+| 2026.11.07 | 0.0.1    | Tested on STM32 Nucleo-64, Arduino Zero, Arduino Uno and ESP32-C3-DevKitC. |
 
 
 <br/>
