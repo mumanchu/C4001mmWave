@@ -39,7 +39,7 @@ When the sensor is in Stop mode, it waits for command messages from the master o
 When the sensor is in Run mode, it continuously sends _report messages_ to the master on its TX line. This is called _active data reporting_. Use `setRunApp(C4001Mode detectionMode)` or `sensorStart()` to put the sensor into Run mode.
 
 
-**Detection mode: Presence Detection or Motion Detection**
+**Detection mode: ~~Presents~~ Presence Detection or Motion Detection**
 
 The detection mode is selected with the `setRunApp(C4001Mode detectionMode)` method. 
 
@@ -52,6 +52,9 @@ _Motion detection_ returns much more detailed information in a "$DFDMD ..." mess
 > \
 > **So it may be better to keep the sensor in _motion detection_ mode and use motion to detect presence, maintaining your own 'presence' state with a timeout if no motion is detected after a certain period.**
 
+> [!NOTE]
+> Yet another NOTE that I found in the data sheet, "The C4001 millimeter wave presence sensor is not specifically designed for distance measurement. The distance is currently not calibrated in the current version, so the distance can only be used as a reference and may have some deviation or error." \
+> **So ignore the `targetDistance` value too.** 
 
 When in Run, report messages are sent continuously to the master. These should be polled from `loop()` by calling `C4001::receive()`. Received ASCII messages are then parsed with `parseDFHPD()` or `parseDFDMD()` to return individual values.
 
@@ -124,14 +127,11 @@ To change it back to the default, just call `changeBaudRate(9600)`.
 
 * The example sketch shows how to change the baud rate and save it to Flash memory, see `changeBaudRate(ulong newBaudRate)`.
 
-* Has useful descriptions of each method, to help understand what it does, and why.
+* Useful descriptions of each method, to help understand what it does, and why.
 
 * Efficient code. This library does not repeat the same code in multiple methods, which cannot be optimised by the compiler. The DFRobot library contains both UART and I2C code, even if you don't use I2C. See DFRobot's `uartI2CFlag`. This is strange because they could have put this into the `DFRobot_C4001_I2C` class and done all the shared work in a base class.
 
-* The DFRobot library uses a lot of delays instead of parsing the responses in real time. It delays until the response "should have been received" before processing it. These delays may not work for slow baud rates. The _mumanchu_ library parses responses in real time, so no delays are needed and all errors are detected.
-
 * Advantage or Disadvantage? This library supports only the UART protocol, I2C (for the SEN0610 only) is not supported. I'm not sure why you would need to use I2C, because communications speed is not an issue.
-
 
 
 ## Class Reference
