@@ -37,7 +37,7 @@ They are often called '_Human_ Presence Sensors'. But I suspect they will also d
 
 Both these DFRobot boards use the 'IcLegend S3KM1110' mmWave sensor. This is a system-on-a-chip (SoC) device which has been programmed by DFRobot to support their proprietary UART protocol.
 
-I like these boards because they are easy to configure and they don't need a PC application to set them up. The DFRobot protocol makes it simple.
+I like these boards because they are easy to configure and they don't need a PC application to set them up. The DFRobot UART protocol makes it simple.
 
 This library supports UART (RX/TX) communications only, using DFRobot's command-line style UART (ASCII) protocol. I2C (for the SEN0609 only) is not supported, but you don't really need it. Other DFRobot modules use different RX/TX protocols (ASCII or binary), this library will not work with those.
 
@@ -75,7 +75,6 @@ _Motion detection_ returns much more detailed information in a "$DFDMD ..." mess
 
 > [!NOTE]
 > Another note that I found in the protocol document (page 5), "_The C4001 millimeter wave presence sensor is not specifically designed for distance measurement. The distance is currently not calibrated in the current version, so the distance can only be used as a reference and may have some deviation or error._" So take care with the `targetDistance` value. \
-> \
 > Page 5 also has this statement that I do not understand. "_The C4001 millimeter wave presence sensor module has a 1m transition zone, which means that if the maximum detection distance is set to 3 meters, it is possible to detect targets between 3~25 meters._" Huh?
 
 
@@ -134,7 +133,7 @@ If the configuration has been saved to Flash, then you don't even need to connec
 > The OUT pin is _not_ an open drain output. If using more than one sensor you must use a separate input for each one, you cannot connect several OUT pins to one microcontroller input. Or you could use a multiplexer.
 
 > [!WARNING]
-> I found that calling `resetSystem()` several times can hang the sensor. It recovers after about 25 seconds. With the 12m baord, it seems to hang predictably after _every 20th reset_, which is weird. \
+> I found that calling `resetSystem()` several times can hang the sensor. It recovers after about 25 seconds. With the 12m board, it seems to hang predictably after _every 20th reset_, which is weird. \
 > **_Do not call `resetSystem()` on every power up, only do this when saving the configuration to Flash._**
 
 <!-- ========================================================================================== -->
@@ -312,7 +311,7 @@ https://github.com/DFRobot/DFRobot_C4001
 
 | Date       | Revision | Changes      |
 |:---------- |:---------| :----------- |
-| 2026.11.09 | 0.0.2    | Improved state machine to receive and parse messages <br/> Tested on Arduino Due (3.3V) |
+| 2026.11.09 | 1.0.0    | Improved state machine to receive and parse messages <br/> Tested on Arduino Due (3.3V) |
 | 2026.11.07 | 0.0.1    | Tested on STM32 Nucleo-64, Arduino Zero, Arduino Uno (5V) and ESP32-C3-DevKitC |
 
 
