@@ -1,7 +1,7 @@
 
 ## Arduino Library for DFRobot C4001 mmWave Presence Sensors 
 
-This library works for these two DFRobot modules, which run on 3.3V or 5V,
+This library works for these two DFRobot modules,
 * SKU **SEN0609**, C4001 mmWave, 25m, UART only
 * SKU **SEN0610**, C4001 mmWave, 12m, UART or I2C (switch selectable), this library only supports UART
 
@@ -29,7 +29,7 @@ This library works for these two DFRobot modules, which run on 3.3V or 5V,
 <a name="introduction"></a>
 ## Introduction
 
-Millimetre wave (mmWave) sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
+Millimetre wave (mmWave) sensors use _Frequency Modulated Continuous Wave_ (FMCW) modulation. They emit a series of continuous-wave signals with gradually changing frequencies and simultaneously receive the reflected signals. Measurements of distance, velocity and angle are determined by analyzing the reflected signals.
 
 Since they use a kind of radar, they can easily see through a plastic protective cover. They can even see through thin partitions and walls, so take this into account when configuring the sensitivity and range so they don't detect people in adjoining rooms.
 
@@ -45,6 +45,7 @@ Either `SoftwareSerial` or `HardwareSerial` can be used, via a `Stream` pointer,
 
 There are two on-board LEDs. The green LED is on (or flashing) when it's Running in _active reporting mode_. The white LED follows the state of the OUT pin (presence or motion detected). 
 
+Both boards run on 3.3V or 5V. _Do not connect 5V to the board if your Arduino is 3.3V!_
 
 > [!NOTE]
 > The smaller 12m range board (SEN0610) has a switch on the back to select I2C or UART communications. This must be switched to UART mode. The larger 25m range board (SEN0609) has only UART mode.
@@ -65,7 +66,7 @@ When the sensor is in Run mode, it continuously sends _report messages_ to the m
 
 The detection mode is selected with the `setRunApp(C4001Mode detectionMode)` method. 
 
-_Presence detection_ just returns a boolean value meaning 'presence' or 'no presence' in a "$DFHPD ..." message. Note that the protocol document sometimes uses _existence detection_ instead of _presence detection_, which is not the same thing (you can exist without being present, but you cannot be present if you don't exist ;-)
+_Presence detection_ just returns a boolean value meaning 'presence' or 'no presence' (occupied / not occupied) in a "$DFHPD ..." message. Note that the protocol document sometimes uses _existence detection_ instead of _presence detection_, which is not the same thing (you can exist without being present, but you cannot be present if you don't exist ;-)
 
 _Motion detection_ returns much more detailed information in a "$DFDMD ..." message - the number of moving targets detected, the distance, speed and energy. The 'target energy' is not described in the documentation, it seems to be a relative value which could be used to determine the size of the moving object.
 
@@ -78,7 +79,7 @@ _Motion detection_ returns much more detailed information in a "$DFDMD ..." mess
 > Page 5 also has this statement that I do not understand. "_The C4001 millimeter wave presence sensor module has a 1m transition zone, which means that if the maximum detection distance is set to 3 meters, it is possible to detect targets between 3~25 meters._" Huh?
 
 
-When in Run, report messages are sent continuously to the master. These should be polled from `loop()` by calling `C4001::receive()`. Received ASCII messages are then parsed with `parseDFHPD()` or `parseDFDMD()` to return individual values. You don't need `strncmp()` if you know the mode.
+When in Run, report messages are sent continuously to the master. These should be polled from `loop()` by calling `C4001::receive()`. Received ASCII messages are then parsed with `parseDFHPD()` or `parseDFDMD()` to return individual values. (in the example sketch, you don't need `strncmp()` if you already know the mode.)
 
 You will probably want to add code to check for changes in state, since `presenceDetected` is returned multiple times for the same presence, and the motion detected messages will probably be the same creature(s) moving about in the sensor's field of view.
 
@@ -121,21 +122,20 @@ void loop()
 <a name="flash-memory"></a>
 ## Flash Memory for Storing the Configuration
 
-It is not necessary to configure the chip every time it starts up. Once a suitable configuration has been tested, it can be programmed into Flash memory so it is restored automatically when the chip powers up. To store the current configuration, which includes the baud rate (if changed), call `saveConfig()`.
-
-The example sketch has some code to do this.
-
-Once configured, you don't need to poll for _active data reporting_ messages to detect a presence or motion (unless you need the motion detection details). You can just examine the state of the OUT Pin. 
-
-> [!NOTE]
-> The OUT pin is NOT an open drain output, so if using more than one sensor you need a separate input for each one. You cannot connect several OUT pins to one microcontroller input.
-
-If the configuration has been saved to Flash, then you don't even need to connect the RX and TX pins.
+It is not necessary to configure the chip every time it starts up. Once a suitable configuration has been tested, it can be programmed into Flash memory so it is restored automatically when the chip powers up. To store the current configuration, which includes the baud rate, call `saveConfig()`. The example sketch has example code to do this.
 
 After calling `saveConfig()`, you must send either the command to start the module `sensorStart()`, or send the reset/restart command `resetSystem()`, or power it off and on. The newly configured parameters will take effect only after these steps.
 
+Once configured, you can just examine the state of the OUT Pin. You don't need to poll for _active data reporting_ messages to detect a presence or motion, unless you need the motion detection details. 
+
+If the configuration has been saved to Flash, then you don't even need to connect the RX and TX pins.
+
 > [!TIP]
-> I found that calling `resetSystem()` several times will sometimes hang the sensor. It recovers after about 25 seconds. With the 12m version, it hangs predictably after _every 20th reset_, which is weird. 
+> The OUT pin is _not_ an open drain output. If using more than one sensor you must use a separate input for each one, you cannot connect several OUT pins to one microcontroller input. Or you could use a multiplexer.
+
+> [!WARNING]
+> I found that calling `resetSystem()` several times can hang the sensor. It recovers after about 25 seconds. With the 12m baord, it seems to hang predictably after _every 20th reset_, which is weird. \
+> **_Do not call `resetSystem()` on every power up, only do this when saving the configuration to Flash._**
 
 <!-- ========================================================================================== -->
 
@@ -146,7 +146,7 @@ The _mumanchu_ example sketch contains a function called `changeBaudRate(ulong n
 
 After `changeBaudRate()` has been run, you must modify `Serial1.begin(baudRate)` so the new baud rate will be used the next time the program runs.
 
-To change it back to the default, call `changeBaudRate(9600)` or `resetToFactoryDefaults()`.
+To change it back to the default 9600, call `changeBaudRate(9600)` or `resetToFactoryDefaults()`.
 
 > [!NOTE]
 > The protocol document says the default baud rate is 115200 bps. This was not the case for my two boards, they were both configured for 9600 bps. The factory reset restores the baud rate to 9600.
