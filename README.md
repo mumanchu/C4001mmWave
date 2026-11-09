@@ -59,7 +59,7 @@ Both boards run on 3.3V or 5V. _Do not connect 5V to the board if your Arduino i
 
 When the sensor is in Stop mode, it waits for command messages from the master on its RX line before returning a response. Commands cannot be sent unless it is in Stop. The `sensorStop()` command puts it into Stop mode.
 
-When the sensor is in Run mode, it continuously sends _report messages_ to the master on its TX line. This is called _active data reporting_. Use `setRunApp(C4001Mode detectionMode)` or `sensorStart()` to put the sensor into Run mode.
+When the sensor is in Run mode, it continuously sends _report messages_ to the master on its TX line. This is called _active data reporting_. Use `setRunApp(C4001Mode detectionMode)` then `sensorStart()` to put the sensor into Run mode.
 
 
 **Active Reporting Mode: Presence Detection or Motion Detection**
@@ -311,7 +311,7 @@ https://github.com/DFRobot/DFRobot_C4001
 
 | Date       | Revision | Changes      |
 |:---------- |:---------| :----------- |
-| 2026.11.09 | 1.0.0    | Improved state machine to receive and parse messages <br/> Tested on Arduino Due (3.3V) |
+| 2026.11.09 | 1.0.0    | Improved state machine to receive and parse messages <br/> Tested on Arduino Due |
 | 2026.11.07 | 0.0.1    | Tested on STM32 Nucleo-64, Arduino Zero, Arduino Uno (5V) and ESP32-C3-DevKitC |
 
 
