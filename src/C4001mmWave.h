@@ -129,11 +129,11 @@ bool C4001mmWave::begin(Stream* serial)
 	while (millis() < 1000)
 		yield();
 
+	//TODO? read the HW & FW versions and handle any differences in 
+	//behaviour between the versions
+
 	// ensure it's in Stop
 	return sensorStop();
-
-	//TODO read the HW & FW versions and handle any differences in 
-	//behaviour between the versions
 }
 
 
@@ -318,7 +318,8 @@ bool C4001mmWave::resetCfg()
 // Do a software reset and restart
 // NOTE! On return, the sensor is in Run mode
 // *** Some FW versions may start returning $ messages after "resetSystem 0"
-// *** Sometimes the sensor hangs for 20 seconds after this command
+// *** Sometimes the sensor hangs for 25 seconds after this command, so do
+// not call this on every power-up!
 bool C4001mmWave::resetSystem()
 {
 	C4001_PRINT("\r\nSent: \"");
@@ -355,7 +356,7 @@ bool C4001mmWave::resetSystem()
 // maxMetres : Maximum detection distance in metres, minMetres..25, default=6
 bool C4001mmWave::setRange(float minMetres, float maxMetres)
 {
-	// NOTE! minMetres = "not recommended to modify", so keep it at 0.6m
+	// NOTE! minMetres is "not recommended to modify", so keep it at 0.6m
 	C4001_ASSERT(minMetres <= 25.0f);
 	C4001_ASSERT(maxMetres >= minMetres && maxMetres <= 25.0f);
 
@@ -373,8 +374,8 @@ bool C4001mmWave::getRange(float* minMetres, float* maxMetres)
 	return getFloats(minMetres, maxMetres);
 }
 
-// Set/get the Trigger Distance in metres at which it triggers when a presence 
-// is detected
+// Set/get the Trigger Distance in metres at which it triggers when a 
+// presence is detected
 // **Presence Detection Mode only**
 // rangeInMetres : 0..25m, default = 6m
 bool C4001mmWave::setTrigRange(float rangeInMetres)
