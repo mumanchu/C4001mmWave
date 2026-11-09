@@ -4,13 +4,14 @@
 // Arduino Library for DFRobot C4001 mmWave Presence Sensors
 // for DFRobot C4001 mmWave sensors, SKU SEN0609 & SEN0610, UART interface
 // 
-// Copyright (C) https://muman.ch + https://github.com/mumanchu, 2026.11.07
+// Copyright (C) https://muman.ch + https://github.com/mumanchu, 2026.11.09
 // If you re-use this software, please include the above copyright notice
 //
-// For full details see,
+// For full details see
 // https://github.com/mumanchu/C4001mmWave
 
 #include <string.h>
+#include <Stream.h>
 
 typedef unsigned long ulong;
 typedef unsigned int uint;
@@ -23,7 +24,7 @@ extern bool floatToString(float value, char* psz, unsigned int decimalPlaces);
 #ifdef DEBUG
 #define C4001_LOGERROR(s) { Serial.println(s); Serial.flush(); }
 #define C4001_PRINT(s) { Serial.print(s); Serial.flush(); }
-#define C4001_ASSERT(b, s) if (!(b)) { C4001_LOGERROR(s); return false; }
+#define C4001_ASSERT(b) if (!(b)) { C4001_LOGERROR("bad parameter"); return false; }
 #else
 #define C4001_LOGERROR(s)
 #define C4001_PRINT(s)
@@ -42,6 +43,7 @@ protected:
 	uint rxState = 0;	
 	uint rxIndex = 0;
 	bool gotResponse = false;
+	static const char* dfRobotPrompt;	// "DFRobot:/>";
 
 public:
 
@@ -111,10 +113,14 @@ protected:
 	bool awaitPrompt();
 };
 
+// DFRobot's command line prompt
+const char* C4001mmWave::dfRobotPrompt = "DFRobot:/>";
+
 
 // Initialisation
-// 'Stream* serial' can be the address of a HardwareSerial or SoftwareSerial stream
-// on return, the sensor is on Stop mode
+// 'Stream* serial' can be the address of a HardwareSerial or SoftwareSerial 
+// stream 
+// On return, the sensor is on Stop mode, ready to receive commands
 bool C4001mmWave::begin(Stream* serial)
 {
 	this->stream = serial;
@@ -125,6 +131,9 @@ bool C4001mmWave::begin(Stream* serial)
 
 	// ensure it's in Stop
 	return sensorStop();
+
+	//TODO read the HW & FW versions and handle any differences in 
+	//behaviour between the versions
 }
 
 
@@ -148,10 +157,11 @@ bool C4001mmWave::parseDFHPD(bool* presenceDetected)
 // Parse a $DFDMD message sent in Motion Detection Mode
 // (distance and speed detection)
 // "$DFDMD,par1,par2,par3,par4,par5,,*"
-//   par1 : number of targets  0=no target; 1=one target uint
+//   par1 : number of targets  0=no target; 1=one target
 //   par2 : target number 1 or space
 //   par3 : target distance in metres, range 0..25
 //   par4 : target speed in metres-per-second, 0..10mps (if par1==1)
+//          -ve means moving towards sensor, +ve means moving away
 //   par5 : target energy (if par1==1)
 // Examples:
 //   no target   "$DFDMD,0, , , , , , *"
@@ -196,8 +206,9 @@ bool C4001mmWave::parseDFDMD(uint* numTargets, float* targetDistance,
 	return false;
 }
 
-// Read the hardware version string, max 32 characters including NUL
-// e.g. "JYSJ_5807_A01"
+// Read the hardware version string
+// max. 32 characters including NUL
+// e.g. "JYSJ_426_A01_H"
 bool C4001mmWave::getHWV(char* hwVersion)
 {
 	*hwVersion = '\0';
@@ -206,8 +217,9 @@ bool C4001mmWave::getHWV(char* hwVersion)
 	return parseVersion(false, hwVersion);
 }
 
-// Read the software version string, max. 32 characters including NUL
-// e.g. "JYSJ_02.08.08.010827"
+// Read the software version string
+// max. 32 characters including NUL
+// e.g. "JYSJ_01.00.08.240220" (the last value is probably YYMMDD)
 bool C4001mmWave::getSWV(char* swVersion)
 {
 	*swVersion = '\0';
@@ -228,6 +240,7 @@ bool C4001mmWave::parseVersion(bool bsw, char* version)
 		return false;
 	*end = '\0';
 	uint len = end - start;
+	// max. 32 characters including NUL
 	if (len > 31)
 		start[31] = '\0';
 	strcpy(version, start);
@@ -289,7 +302,7 @@ bool C4001mmWave::saveConfig()
 	// response can be "no parameter has changed",
 	// that's not an error
 	if (!ok) {
-		if (strstr(rxBuf, "changed") != NULL)
+		if (strstr(rxBuf, "no parameter") != NULL)
 			return true;
 	}
 	return ok;
@@ -342,10 +355,9 @@ bool C4001mmWave::resetSystem()
 // maxMetres : Maximum detection distance in metres, minMetres..25, default=6
 bool C4001mmWave::setRange(float minMetres, float maxMetres)
 {
-	// minMetres = "not recommended to modify", so keep it at 0.6m
-	minMetres = 0.6f;
-
-	C4001_ASSERT(maxMetres >= minMetres && maxMetres <= 25.0f, "bad param");
+	// NOTE! minMetres = "not recommended to modify", so keep it at 0.6m
+	C4001_ASSERT(minMetres <= 25.0f);
+	C4001_ASSERT(maxMetres >= minMetres && maxMetres <= 25.0f);
 
 	strcpy(txBuf, "setRange ");
 	if (!formatFloats(2, minMetres, maxMetres))
@@ -367,7 +379,7 @@ bool C4001mmWave::getRange(float* minMetres, float* maxMetres)
 // rangeInMetres : 0..25m, default = 6m
 bool C4001mmWave::setTrigRange(float rangeInMetres)
 {
-	C4001_ASSERT(rangeInMetres >= 0.0f && rangeInMetres <= 25.0f, "bad param");
+	C4001_ASSERT(rangeInMetres >= 0.0f && rangeInMetres <= 25.0f);
 
 	strcpy(txBuf, "setTrigRange ");
 	floatToString(rangeInMetres, txBuf + 13, 3);
@@ -390,8 +402,8 @@ bool C4001mmWave::getTrigRange(float* rangeInMetres)
 // range 0..9, 255 = unchanged, typically between 2 and 6
 bool C4001mmWave::setSensitivity(uint triggerSensitivity, uint holdSensitivity)
 {
-	C4001_ASSERT(triggerSensitivity < 10 || triggerSensitivity == 255, "bad param");
-	C4001_ASSERT(holdSensitivity < 10 || holdSensitivity == 255, "bad param");
+	C4001_ASSERT(triggerSensitivity < 10 || triggerSensitivity == 255);
+	C4001_ASSERT(holdSensitivity < 10 || holdSensitivity == 255);
 
 	sprintf(txBuf, "setSensitivity %u %u", holdSensitivity, triggerSensitivity);
 	return sendMessageAndGetResponse(txBuf);
@@ -416,8 +428,8 @@ bool C4001mmWave::getSensitivity(uint* triggerSensitivity, uint* holdSensitivity
 // disappearanceLatency : the time to detect no presence, 0.5..1500 seconds, default=15
 bool C4001mmWave::setLatency(float confirmationLatency, float disappearanceLatency)
 {
-	C4001_ASSERT(confirmationLatency >= 0.0f && confirmationLatency <= 100.0f, "bad param");
-	C4001_ASSERT(disappearanceLatency >= 0.5f && disappearanceLatency <= 1500.0f, "bad param");
+	C4001_ASSERT(confirmationLatency >= 0.0f && confirmationLatency <= 100.0f);
+	C4001_ASSERT(disappearanceLatency >= 0.5f && disappearanceLatency <= 1500.0f);
 
 	strcpy(txBuf, "setLatency ");
 	if (!formatFloats(2, confirmationLatency, disappearanceLatency))
@@ -441,7 +453,7 @@ bool C4001mmWave::getLatency(float* confirmationLatency, float* disappearanceLat
 // range 0.1 .. 255, default = 1 second
 bool C4001mmWave::setInhibit(float seconds)
 {
-	C4001_ASSERT(seconds >= 0.1f && seconds <= 255.0f, "bad param");
+	C4001_ASSERT(seconds >= 0.1f && seconds <= 255.0f);
 
 	strcpy(txBuf, "setInhibit ");
 	if (!formatFloats(1, seconds))
@@ -486,7 +498,7 @@ bool C4001mmWave::getMicroMotion(bool* enabled)
 bool C4001mmWave::setThresholdFactor(uint factor)
 {
 	// what's the range?
-	C4001_ASSERT(factor <= 65535, "bad param");
+	C4001_ASSERT(factor <= 65535);
 
 	sprintf(txBuf, "setThrFactor %u", factor);
 	return sendMessageAndGetResponse(txBuf);
@@ -546,8 +558,8 @@ bool C4001mmWave::getUart(ulong* baudRate)
 // A state machine is needed so it can receive the next message even 
 // when it starts in the middle of a message or a message was corrupted.
 // messageSent : this is the message for which we need the response, the 
-//   response contains the echoed message and it is used for validation. 
-//   Use NULL for receiving $DFHPD and $DFDMD messages.
+//   response contains the echoed message which is used for validation. 
+// messageSent : NULL for receiving $DFHPD and $DFDMD messages
 bool C4001mmWave::receive(const char* messageSent)
 {
 	while (stream->available()) {
@@ -583,16 +595,16 @@ bool C4001mmWave::receive(const char* messageSent)
 			}
 			break;
 
-		// receiving "$....*"
+		// receiving active reporting message "$... *"
 		case 1:
 			rxBuf[rxIndex++] = ch;
 			if (ch == '*')
 				rxState = 2;
-			if (ch == '\r' || ch == '\n')
+			else if (ch == '\r' || ch == '\n')
 				rxState = 0;
 			break;
 
-		// receiving "\r\n"
+		// receiving terminating "\r\n"
 		case 2:
 			if (ch == '\r' || ch == '\n') {
 				rxBuf[rxIndex++] = ch;
@@ -606,26 +618,30 @@ bool C4001mmWave::receive(const char* messageSent)
 			rxState = 0;
 			break;
 
-		// receiving response, read up to "\r\nDFRobot:/>"
+		// receiving response to command message
 		case 3:
-			// check first 3 characters, just to be safe
-			if (rxIndex < 3 && ch != messageSent[rxIndex]) {
-				rxState = 0;
-				break;
-			}
+			// check the echoed command message
+			if (ch != messageSent[rxIndex])
+				rxState = messageSent[rxIndex] == '\0' ? 4 : 0;
 			rxBuf[rxIndex++] = ch;
+			break;
 
+		// looking for the "DFRobot:/>" prompt
+		case 4:
+			rxBuf[rxIndex++] = ch;
 			if (ch == '>') {
-				// response received
 				rxBuf[rxIndex] = '\0';
 				rxState = 0;
-				gotResponse = true;
+				if (rxIndex >= 10 && strcmp(rxBuf + rxIndex - 10, dfRobotPrompt) == 0) {
+					// full response received
+					gotResponse = true;
 
-				C4001_PRINT("Received: \"");
-				C4001_PRINT(rxBuf);
-				C4001_PRINT("\"\r\n");
+					C4001_PRINT("Received: \"");
+					C4001_PRINT(rxBuf);
+					C4001_PRINT("\"\r\n");
 
-				return true;
+					return true;
+				}
 			}
 			break;
 
@@ -723,10 +739,8 @@ bool C4001mmWave::getFloats(float* value1, float* value2/*=NULL*/,
 bool C4001mmWave::formatFloats(uint numFloats, 
 	float value1, float value2/*=0*/, float value3/*=0*/)
 {
-	if (numFloats < 1 || numFloats > 3) {
-		C4001_LOGERROR("formatFloats error");
-		return false;
-	}
+	C4001_ASSERT(numFloats >= 1 && numFloats <= 3);
+
 	char* psz = strchr(txBuf, '\0');
 	floatToString(value1, psz, 3);
 	if (numFloats == 1)
@@ -806,15 +820,14 @@ bool C4001mmWave::sendMessageAndGetResponse(const char* message)
 bool C4001mmWave::awaitPrompt()
 {
 	ulong start = millis();
-
-	static const char prompt[] = "DFRobot:/>";
 	uint ixPrompt = 0;
 
 	while (1) {
 		while (stream->available()) {
 			char ch = stream->read();
 			C4001_PRINT(ch);
-			if (ch == prompt[ixPrompt]) {
+			// look for the "DFRobot:/>" prompt
+			if (ch == dfRobotPrompt[ixPrompt]) {
 				if (ch == '>') {
 					C4001_PRINT("\n\rReceived: \"DFRobot:/>\"\n\r");
 					return true;
