@@ -253,7 +253,7 @@ Parts of the example sketch can be modified or enabled to do different things, s
 
 * Has full communications error detection, with timeouts. Every method returns `true` (success) or `false` (failed). Data is returned via pointer parameters.
 
-* Uses a state machine for processing UART messages received from the mmWave board. This detects corrupted messages, and works if reading starts in the middle of a message.
+* Uses a state machine for processing UART messages received from the mmWave board. This detects corrupted messages, and synchroizes if reading starts in the middle of a message.
 
 * Debug output is enabled/disabled with `#define DEBUG`, using the `C4001_LOGERROR(s)` and `C4001_PRINT(s)` macros. Also validates the configuration parameters using `C4001_ASSERT()`.
 
