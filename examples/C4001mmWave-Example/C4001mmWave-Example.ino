@@ -19,6 +19,17 @@ C4001mmWave c4001;
 // 'Serial1' is used for the mmWave sensor's UART
 // 'Serial' is for the Serial Monitor so you can see the data
 
+#if defined(ARDUINO_SAM_DUE)
+// The Arduino Due has Serial1 on TX1 (18) and RX1 (19), connect these 
+// to RX and TX on the sensor
+// !!!NOTE!!!  
+// If you select "No Optimisation" for the Arduino Due, then the build 
+// may fail with this message:
+// "HardwareSerial.h:26: undefined reference to vtable for HardwareSerial"
+// It's a problem with the boards package, you can find the fix here:
+// https://learn.adafruit.com/proper-step-debugging-atsamd21-arduino-zero-m0/paths-and-optimizations#fixing-some-core-files-2469468-17
+#endif
+
 #if defined(ARDUINO_ARCH_STM32)
 // On the STM32F103 Nucleo board, 'Serial' is the USB port
 // so we use USART1, TX=D8 (PA9), RX=D2 (PA10) for the mmWave sensor
@@ -164,7 +175,7 @@ void setup()
 
 
 	// enable this to reset the configuration to factory defaults
-	// NOTE! This restores the baud rate to 9600!
+	// NOTE! This also restores the baud rate to 9600!
 	#if 0
 	if (!resetToFactoryDefaults())
 		fatal("resetToFactoryDefaults() failed");
@@ -194,7 +205,7 @@ void setup()
 	float inhibitSecs;
 	c4001.getInhibit(&inhibitSecs);
 	*/
-	c4001.setRange(0.6f, 6.0f);		// minMetres = "not recommended to modify"
+	c4001.setRange(0.6f, 6.0f);		// minMetres is "not recommended to modify"
 	c4001.setTrigRange(6.0f);
 	c4001.setSensitivity(5, 7);
 	c4001.setLatency(0.05f, 15.0f);
